@@ -21,8 +21,58 @@ func newGmailLabelsCmd(flags *rootFlags) *cobra.Command {
 	}
 
 	cmd.AddCommand(newGmailLabelsListCmd(flags))
+	cmd.AddCommand(newGmailLabelsGetCmd(flags))
 	cmd.AddCommand(newGmailLabelsModifyCmd(flags))
 	return cmd
+}
+
+func newGmailLabelsGetCmd(flags *rootFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "get <labelIdOrName>",
+		Short: "Get label details (including counts)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+
+			svc, err := googleapi.NewGmail(cmd.Context(), account)
+			if err != nil {
+				return err
+			}
+
+			idMap, err := fetchLabelNameToID(svc)
+			if err != nil {
+				return err
+			}
+			raw := strings.TrimSpace(args[0])
+			if raw == "" {
+				return errors.New("empty label")
+			}
+			id := raw
+			if v, ok := idMap[strings.ToLower(raw)]; ok {
+				id = v
+			}
+
+			l, err := svc.Users.Labels.Get("me", id).Do()
+			if err != nil {
+				return err
+			}
+			if outfmt.IsJSON(cmd.Context()) {
+				return outfmt.WriteJSON(os.Stdout, map[string]any{"label": l})
+			}
+			u := ui.FromContext(cmd.Context())
+			u.Out().Printf("id\t%s", l.Id)
+			u.Out().Printf("name\t%s", l.Name)
+			u.Out().Printf("type\t%s", l.Type)
+			u.Out().Printf("messages_total\t%d", l.MessagesTotal)
+			u.Out().Printf("messages_unread\t%d", l.MessagesUnread)
+			u.Out().Printf("threads_total\t%d", l.ThreadsTotal)
+			u.Out().Printf("threads_unread\t%d", l.ThreadsUnread)
+			return nil
+		},
+	}
 }
 
 func newGmailLabelsListCmd(flags *rootFlags) *cobra.Command {
