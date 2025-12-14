@@ -90,7 +90,15 @@ Calendar:
 
 - `gog calendar calendars`
 - `gog calendar events <calendarId> --from 2025-12-08T00:00:00+01:00 --to 2025-12-15T00:00:00+01:00 --max 250`
+- `gog calendar events --all` — fetch events from all calendars at once
 - `gog calendar event <calendarId> <eventId>`
+- `gog calendar create <calendarId> --summary "Meeting" --start 2025-12-15T10:00:00Z --end 2025-12-15T11:00:00Z`
+- `gog calendar create <calendarId> ... --organizer organizer@example.com --color 5` — with custom organizer/color
+- `gog calendar search "meeting" --from 2025-12-01T00:00:00Z --to 2025-12-31T00:00:00Z --max 50`
+- `gog calendar respond <calendarId> <eventId> --status accepted` — respond to invitations (accepted/declined/tentative)
+- `gog calendar colors` — list available event and calendar colors
+- `gog calendar time --timezone America/New_York` — show current time in a timezone
+- `gog calendar conflicts --calendars "primary,work@example.com" --from 2025-12-15T00:00:00Z --to 2025-12-22T00:00:00Z` — detect overlapping events
 
 Gmail:
 
