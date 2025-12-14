@@ -394,6 +394,8 @@ func newCalendarCreateCmd(flags *rootFlags) *cobra.Command {
 	var location string
 	var attendees string
 	var allDay bool
+	var organizer string
+	var color string
 
 	cmd := &cobra.Command{
 		Use:   "create <calendarId>",
@@ -425,6 +427,14 @@ func newCalendarCreateCmd(flags *rootFlags) *cobra.Command {
 				Attendees:   buildAttendees(attendees),
 			}
 
+			if strings.TrimSpace(organizer) != "" {
+				event.Organizer = &calendar.EventOrganizer{Email: organizer}
+			}
+
+			if strings.TrimSpace(color) != "" {
+				event.ColorId = color
+			}
+
 			created, err := svc.Events.Insert(calendarID, event).Do()
 			if err != nil {
 				return err
@@ -447,6 +457,8 @@ func newCalendarCreateCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&location, "location", "", "Event location")
 	cmd.Flags().StringVar(&attendees, "attendees", "", "Attendees (comma-separated)")
 	cmd.Flags().BoolVar(&allDay, "all-day", false, "Create all-day event (use YYYY-MM-DD for start/end)")
+	cmd.Flags().StringVar(&organizer, "organizer", "", "Custom organizer email")
+	cmd.Flags().StringVar(&color, "color", "", "Event color ID (1-11)")
 	return cmd
 }
 
