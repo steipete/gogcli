@@ -29,6 +29,7 @@ func newCalendarCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newCalendarCreateCmd(flags))
 	cmd.AddCommand(newCalendarUpdateCmd(flags))
 	cmd.AddCommand(newCalendarDeleteCmd(flags))
+	cmd.AddCommand(newCalendarRespondCmd(flags))
 	cmd.AddCommand(newCalendarFreeBusyCmd(flags))
 	return cmd
 }
