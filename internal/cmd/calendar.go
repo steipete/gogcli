@@ -50,7 +50,7 @@ func newCalendarCalendarsCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			resp, err := svc.CalendarList.List().Do()
+			resp, err := svc.CalendarList.List().Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func newCalendarAclCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			resp, err := svc.Acl.List(calendarID).Do()
+			resp, err := svc.Acl.List(calendarID).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -163,7 +163,7 @@ func newCalendarEventsCmd(flags *rootFlags) *cobra.Command {
 			if strings.TrimSpace(query) != "" {
 				call = call.Q(query)
 			}
-			resp, err := call.Do()
+			resp, err := call.Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -220,7 +220,7 @@ func newCalendarEventCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			e, err := svc.Events.Get(calendarID, eventID).Do()
+			e, err := svc.Events.Get(calendarID, eventID).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -299,7 +299,7 @@ func newCalendarCreateCmd(flags *rootFlags) *cobra.Command {
 				Attendees:   buildAttendees(attendees),
 			}
 
-			created, err := svc.Events.Insert(calendarID, event).Do()
+			created, err := svc.Events.Insert(calendarID, event).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -351,7 +351,7 @@ func newCalendarUpdateCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			existing, err := svc.Events.Get(calendarID, eventID).Do()
+			existing, err := svc.Events.Get(calendarID, eventID).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -398,7 +398,7 @@ func newCalendarUpdateCmd(flags *rootFlags) *cobra.Command {
 				return errors.New("no updates provided")
 			}
 
-			updated, err := svc.Events.Update(calendarID, eventID, existing).Do()
+			updated, err := svc.Events.Update(calendarID, eventID, existing).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -442,7 +442,7 @@ func newCalendarDeleteCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			if err := svc.Events.Delete(calendarID, eventID).Do(); err != nil {
+			if err := svc.Events.Delete(calendarID, eventID).Context(cmd.Context()).Do(); err != nil {
 				return err
 			}
 			if outfmt.IsJSON(cmd.Context()) {
@@ -496,7 +496,7 @@ func newCalendarFreeBusyCmd(flags *rootFlags) *cobra.Command {
 				TimeMin: from,
 				TimeMax: to,
 				Items:   items,
-			}).Do()
+			}).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
