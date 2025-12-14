@@ -36,7 +36,7 @@ func newGmailThreadCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			thread, err := svc.Users.Threads.Get("me", threadID).Format("full").Do()
+			thread, err := svc.Users.Threads.Get("me", threadID).Format("full").Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -250,7 +250,12 @@ func downloadAttachment(cmd *cobra.Command, svc *gmail.Service, messageID string
 	if len(shortID) > 8 {
 		shortID = shortID[:8]
 	}
-	filename := fmt.Sprintf("%s_%s_%s", messageID, shortID, a.Filename)
+	// Sanitize filename to prevent path traversal attacks
+	safeFilename := filepath.Base(a.Filename)
+	if safeFilename == "" || safeFilename == "." || safeFilename == ".." {
+		safeFilename = "attachment"
+	}
+	filename := fmt.Sprintf("%s_%s_%s", messageID, shortID, safeFilename)
 	outPath := filepath.Join(dir, filename)
 
 	if st, err := os.Stat(outPath); err == nil && st.Size() == a.Size && a.Size > 0 {
