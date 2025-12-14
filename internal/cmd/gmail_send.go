@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -20,11 +21,15 @@ func newGmailSendCmd(flags *rootFlags) *cobra.Command {
 	var body string
 	var replyTo string
 	var attach []string
+	var from string
 
 	cmd := &cobra.Command{
 		Use:   "send",
 		Short: "Send an email",
-		Args:  cobra.NoArgs,
+		Long: `Send an email. Use --from to send from a configured send-as alias.
+
+To see available send-as aliases: gogcli gmail sendas list`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			u := ui.FromContext(cmd.Context())
 			account, err := requireAccount(flags)
@@ -40,6 +45,24 @@ func newGmailSendCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
+			// Determine the From address
+			fromAddr := account
+			if strings.TrimSpace(from) != "" {
+				// Validate that this is a configured send-as alias
+				sa, err := svc.Users.Settings.SendAs.Get("me", from).Do()
+				if err != nil {
+					return fmt.Errorf("invalid --from address %q: %w", from, err)
+				}
+				if sa.VerificationStatus != "accepted" {
+					return fmt.Errorf("--from address %q is not verified (status: %s)", from, sa.VerificationStatus)
+				}
+				fromAddr = from
+				// Include display name if set
+				if sa.DisplayName != "" {
+					fromAddr = sa.DisplayName + " <" + from + ">"
+				}
+			}
+
 			inReplyTo, references, threadID, err := replyHeaders(cmd, svc, replyTo)
 			if err != nil {
 				return err
@@ -51,7 +74,7 @@ func newGmailSendCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			raw, err := buildRFC822(mailOptions{
-				From:        account,
+				From:        fromAddr,
 				To:          splitCSV(to),
 				Cc:          splitCSV(cc),
 				Bcc:         splitCSV(bcc),
@@ -80,6 +103,7 @@ func newGmailSendCmd(flags *rootFlags) *cobra.Command {
 				return outfmt.WriteJSON(os.Stdout, map[string]any{
 					"messageId": sent.Id,
 					"threadId":  sent.ThreadId,
+					"from":      fromAddr,
 				})
 			}
 			u.Out().Printf("message_id\t%s", sent.Id)
@@ -97,6 +121,7 @@ func newGmailSendCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&body, "body", "", "Body (required)")
 	cmd.Flags().StringVar(&replyTo, "reply-to", "", "Reply to message ID (sets In-Reply-To/References and thread)")
 	cmd.Flags().StringSliceVar(&attach, "attach", nil, "Attachment file path (repeatable)")
+	cmd.Flags().StringVar(&from, "from", "", "Send from this email address (must be a verified send-as alias)")
 	return cmd
 }
 

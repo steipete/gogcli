@@ -28,6 +28,13 @@ func newGmailCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newGmailLabelsCmd(flags))
 	cmd.AddCommand(newGmailSendCmd(flags))
 	cmd.AddCommand(newGmailDraftsCmd(flags))
+	cmd.AddCommand(newGmailSendAsCmd(flags))
+	cmd.AddCommand(newGmailBatchCmd(flags))
+	cmd.AddCommand(newGmailVacationCmd(flags))
+	cmd.AddCommand(newGmailFiltersCmd(flags))
+	cmd.AddCommand(newGmailDelegatesCmd(flags))
+	cmd.AddCommand(newGmailForwardingCmd(flags))
+	cmd.AddCommand(newGmailAutoForwardCmd(flags))
 	return cmd
 }
 
