@@ -131,18 +131,25 @@ func newCalendarEventsCmd(flags *rootFlags) *cobra.Command {
 	var max int64
 	var page string
 	var query string
+	var all bool
 
 	cmd := &cobra.Command{
-		Use:   "events <calendarId>",
-		Short: "List events from a calendar",
-		Args:  cobra.ExactArgs(1),
+		Use:   "events [<calendarId>]",
+		Short: "List events from a calendar or all calendars",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			u := ui.FromContext(cmd.Context())
 			account, err := requireAccount(flags)
 			if err != nil {
 				return err
 			}
-			calendarID := args[0]
+
+			// Validate args
+			if !all && len(args) == 0 {
+				return errors.New("calendarId required unless --all is specified")
+			}
+			if all && len(args) > 0 {
+				return errors.New("calendarId not allowed with --all flag")
+			}
 
 			now := time.Now().UTC()
 			oneWeekLater := now.Add(7 * 24 * time.Hour)
@@ -158,43 +165,12 @@ func newCalendarEventsCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			call := svc.Events.List(calendarID).
-				TimeMin(from).
-				TimeMax(to).
-				MaxResults(max).
-				PageToken(page).
-				SingleEvents(true).
-				OrderBy("startTime")
-			if strings.TrimSpace(query) != "" {
-				call = call.Q(query)
-			}
-			resp, err := call.Do()
-			if err != nil {
-				return err
-			}
-			if outfmt.IsJSON(cmd.Context()) {
-				return outfmt.WriteJSON(os.Stdout, map[string]any{
-					"events":        resp.Items,
-					"nextPageToken": resp.NextPageToken,
-				})
+			if all {
+				return listAllCalendarsEvents(cmd, svc, from, to, max, page, query)
 			}
 
-			if len(resp.Items) == 0 {
-				u.Err().Println("No events")
-				return nil
-			}
-
-			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tSTART\tEND\tSUMMARY")
-			for _, e := range resp.Items {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", e.Id, eventStart(e), eventEnd(e), e.Summary)
-			}
-			_ = tw.Flush()
-
-			if resp.NextPageToken != "" {
-				u.Err().Printf("# Next page: --page %s", resp.NextPageToken)
-			}
-			return nil
+			calendarID := args[0]
+			return listCalendarEvents(cmd, svc, calendarID, from, to, max, page, query)
 		},
 	}
 
@@ -203,7 +179,152 @@ func newCalendarEventsCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().Int64Var(&max, "max", 10, "Max results")
 	cmd.Flags().StringVar(&page, "page", "", "Page token")
 	cmd.Flags().StringVar(&query, "query", "", "Free text search")
+	cmd.Flags().BoolVar(&all, "all", false, "Fetch events from all calendars")
 	return cmd
+}
+
+func listCalendarEvents(cmd *cobra.Command, svc *calendar.Service, calendarID, from, to string, max int64, page, query string) error {
+	u := ui.FromContext(cmd.Context())
+
+	call := svc.Events.List(calendarID).
+		TimeMin(from).
+		TimeMax(to).
+		MaxResults(max).
+		PageToken(page).
+		SingleEvents(true).
+		OrderBy("startTime")
+	if strings.TrimSpace(query) != "" {
+		call = call.Q(query)
+	}
+	resp, err := call.Do()
+	if err != nil {
+		return err
+	}
+	if outfmt.IsJSON(cmd.Context()) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{
+			"events":        resp.Items,
+			"nextPageToken": resp.NextPageToken,
+		})
+	}
+
+	if len(resp.Items) == 0 {
+		u.Err().Println("No events")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tSTART\tEND\tSUMMARY")
+	for _, e := range resp.Items {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", e.Id, eventStart(e), eventEnd(e), e.Summary)
+	}
+	_ = tw.Flush()
+
+	if resp.NextPageToken != "" {
+		u.Err().Printf("# Next page: --page %s", resp.NextPageToken)
+	}
+	return nil
+}
+
+type eventWithCalendar struct {
+	*calendar.Event
+	CalendarID string
+}
+
+func listAllCalendarsEvents(cmd *cobra.Command, svc *calendar.Service, from, to string, max int64, page, query string) error {
+	u := ui.FromContext(cmd.Context())
+
+	// Get all calendars
+	calResp, err := svc.CalendarList.List().Do()
+	if err != nil {
+		return err
+	}
+
+	if len(calResp.Items) == 0 {
+		u.Err().Println("No calendars")
+		return nil
+	}
+
+	// Collect events from all calendars
+	var allEvents []*eventWithCalendar
+	for _, cal := range calResp.Items {
+		call := svc.Events.List(cal.Id).
+			TimeMin(from).
+			TimeMax(to).
+			MaxResults(max).
+			PageToken(page).
+			SingleEvents(true).
+			OrderBy("startTime")
+		if strings.TrimSpace(query) != "" {
+			call = call.Q(query)
+		}
+		resp, err := call.Do()
+		if err != nil {
+			// Skip calendars that fail (e.g., due to permissions)
+			continue
+		}
+		for _, e := range resp.Items {
+			allEvents = append(allEvents, &eventWithCalendar{
+				Event:      e,
+				CalendarID: cal.Id,
+			})
+		}
+	}
+
+	if len(allEvents) == 0 {
+		u.Err().Println("No events")
+		return nil
+	}
+
+	// Sort events by start time
+	sortEventsByStartTime(allEvents)
+
+	if outfmt.IsJSON(cmd.Context()) {
+		events := make([]map[string]any, 0, len(allEvents))
+		for _, e := range allEvents {
+			eventMap := map[string]any{
+				"id":         e.Id,
+				"calendarId": e.CalendarID,
+				"summary":    e.Summary,
+				"start":      e.Start,
+				"end":        e.End,
+				"status":     e.Status,
+			}
+			if e.Description != "" {
+				eventMap["description"] = e.Description
+			}
+			if e.Location != "" {
+				eventMap["location"] = e.Location
+			}
+			if len(e.Attendees) > 0 {
+				eventMap["attendees"] = e.Attendees
+			}
+			events = append(events, eventMap)
+		}
+		return outfmt.WriteJSON(os.Stdout, map[string]any{"events": events})
+	}
+
+	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "CALENDAR\tID\tSTART\tEND\tSUMMARY")
+	for _, e := range allEvents {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", e.CalendarID, e.Id, eventStart(e.Event), eventEnd(e.Event), e.Summary)
+	}
+	_ = tw.Flush()
+
+	return nil
+}
+
+func sortEventsByStartTime(events []*eventWithCalendar) {
+	// Simple insertion sort since we expect relatively small lists
+	for i := 1; i < len(events); i++ {
+		key := events[i]
+		keyStart := eventStart(key.Event)
+		j := i - 1
+		for j >= 0 && eventStart(events[j].Event) > keyStart {
+			events[j+1] = events[j]
+			j--
+		}
+		events[j+1] = key
+	}
 }
 
 func newCalendarEventCmd(flags *rootFlags) *cobra.Command {
