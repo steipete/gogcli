@@ -63,6 +63,64 @@ func TestExecute_TasksLists_JSON(t *testing.T) {
 	}
 }
 
+func TestExecute_TasksListsCreate_JSON(t *testing.T) {
+	origNew := newTasksService
+	t.Cleanup(func() { newTasksService = origNew })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !(r.URL.Path == "/tasks/v1/users/@me/lists" && r.Method == http.MethodPost) {
+			http.NotFound(w, r)
+			return
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if body["title"] != "Teaching" {
+			http.Error(w, "expected title Teaching", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":    "l3",
+			"title": "Teaching",
+		})
+	}))
+	defer srv.Close()
+
+	svc, err := tasks.NewService(context.Background(),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(srv.Client()),
+		option.WithEndpoint(srv.URL+"/"),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	newTasksService = func(context.Context, string) (*tasks.Service, error) { return svc, nil }
+
+	out := captureStdout(t, func() {
+		_ = captureStderr(t, func() {
+			if err := Execute([]string{"--output", "json", "--account", "a@b.com", "tasks", "lists", "create", "Teaching"}); err != nil {
+				t.Fatalf("Execute: %v", err)
+			}
+		})
+	})
+
+	var parsed struct {
+		Tasklist struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"tasklist"`
+	}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("json parse: %v\nout=%q", err, out)
+	}
+	if parsed.Tasklist.ID != "l3" || parsed.Tasklist.Title != "Teaching" {
+		t.Fatalf("unexpected tasklist: %#v", parsed.Tasklist)
+	}
+}
+
 func TestExecute_TasksList_JSON(t *testing.T) {
 	origNew := newTasksService
 	t.Cleanup(func() { newTasksService = origNew })

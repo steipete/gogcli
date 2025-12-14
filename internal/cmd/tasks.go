@@ -85,6 +85,45 @@ func newTasksListsCmd(flags *rootFlags) *cobra.Command {
 
 	cmd.Flags().Int64Var(&max, "max", 100, "Max results (max allowed: 1000)")
 	cmd.Flags().StringVar(&page, "page", "", "Page token")
+	cmd.AddCommand(newTasksListsCreateCmd(flags))
+	return cmd
+}
+
+func newTasksListsCreateCmd(flags *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "create <title>",
+		Short:   "Create a task list",
+		Aliases: []string{"add", "new"},
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			u := ui.FromContext(cmd.Context())
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+			title := strings.TrimSpace(strings.Join(args, " "))
+			if title == "" {
+				return errors.New("empty title")
+			}
+
+			svc, err := newTasksService(cmd.Context(), account)
+			if err != nil {
+				return err
+			}
+
+			created, err := svc.Tasklists.Insert(&tasks.TaskList{Title: title}).Do()
+			if err != nil {
+				return err
+			}
+
+			if outfmt.IsJSON(cmd.Context()) {
+				return outfmt.WriteJSON(os.Stdout, map[string]any{"tasklist": created})
+			}
+			u.Out().Printf("id\t%s", created.Id)
+			u.Out().Printf("title\t%s", created.Title)
+			return nil
+		},
+	}
 	return cmd
 }
 
