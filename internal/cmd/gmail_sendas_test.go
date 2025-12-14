@@ -742,3 +742,209 @@ func TestGmailSendFromFlag_NotExist(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestGmailSendAsListCmd_TableOutput(t *testing.T) {
+	origNew := newGmailService
+	t.Cleanup(func() { newGmailService = origNew })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/settings/sendAs") && r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"sendAs": []map[string]any{
+					{
+						"sendAsEmail":        "primary@example.com",
+						"displayName":        "Primary User",
+						"isDefault":          true,
+						"treatAsAlias":       false,
+						"verificationStatus": "accepted",
+					},
+					{
+						"sendAsEmail":        "work@company.com",
+						"displayName":        "Work Alias",
+						"isDefault":          false,
+						"treatAsAlias":       true,
+						"verificationStatus": "pending",
+					},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	svc, err := gmail.NewService(context.Background(),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(srv.Client()),
+		option.WithEndpoint(srv.URL+"/"),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	newGmailService = func(context.Context, string) (*gmail.Service, error) { return svc, nil }
+
+	flags := &rootFlags{Account: "a@b.com"}
+
+	out := captureStdout(t, func() {
+		u, uiErr := ui.New(ui.Options{Stdout: io.Discard, Stderr: io.Discard, Color: "never"})
+		if uiErr != nil {
+			t.Fatalf("ui.New: %v", uiErr)
+		}
+		ctx := ui.WithUI(context.Background(), u)
+		// Not setting JSON mode - should output table format
+
+		cmd := newGmailSendAsListCmd(flags)
+		cmd.SetContext(ctx)
+		cmd.SetArgs([]string{})
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("execute: %v", err)
+		}
+	})
+
+	// Table output should contain headers and data
+	if !strings.Contains(out, "EMAIL") {
+		t.Fatalf("expected table header EMAIL, got: %q", out)
+	}
+	if !strings.Contains(out, "DISPLAY NAME") {
+		t.Fatalf("expected table header DISPLAY NAME, got: %q", out)
+	}
+	if !strings.Contains(out, "primary@example.com") {
+		t.Fatalf("expected primary@example.com in output, got: %q", out)
+	}
+	if !strings.Contains(out, "work@company.com") {
+		t.Fatalf("expected work@company.com in output, got: %q", out)
+	}
+}
+
+func TestGmailSendAsListCmd_EmptyList(t *testing.T) {
+	origNew := newGmailService
+	t.Cleanup(func() { newGmailService = origNew })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/settings/sendAs") && r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"sendAs": []map[string]any{},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	svc, err := gmail.NewService(context.Background(),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(srv.Client()),
+		option.WithEndpoint(srv.URL+"/"),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	newGmailService = func(context.Context, string) (*gmail.Service, error) { return svc, nil }
+
+	flags := &rootFlags{Account: "a@b.com"}
+
+	var stderrBuf strings.Builder
+	u, uiErr := ui.New(ui.Options{Stdout: io.Discard, Stderr: &stderrBuf, Color: "never"})
+	if uiErr != nil {
+		t.Fatalf("ui.New: %v", uiErr)
+	}
+	ctx := ui.WithUI(context.Background(), u)
+	// Not setting JSON mode - should output "No send-as aliases"
+
+	cmd := newGmailSendAsListCmd(flags)
+	cmd.SetContext(ctx)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if !strings.Contains(stderrBuf.String(), "No send-as aliases") {
+		t.Fatalf("expected 'No send-as aliases' in stderr, got: %q", stderrBuf.String())
+	}
+}
+
+func TestGmailBatchModifyCmd_NoLabelsSpecified(t *testing.T) {
+	origNew := newGmailService
+	t.Cleanup(func() { newGmailService = origNew })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	svc, err := gmail.NewService(context.Background(),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(srv.Client()),
+		option.WithEndpoint(srv.URL+"/"),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	newGmailService = func(context.Context, string) (*gmail.Service, error) { return svc, nil }
+
+	flags := &rootFlags{Account: "a@b.com"}
+
+	u, _ := ui.New(ui.Options{Stdout: io.Discard, Stderr: io.Discard, Color: "never"})
+	ctx := ui.WithUI(context.Background(), u)
+	ctx = outfmt.WithMode(ctx, outfmt.ModeJSON)
+
+	cmd := newGmailBatchModifyCmd(flags)
+	cmd.SetContext(ctx)
+	cmd.SetArgs([]string{"msg1", "msg2"})
+	// Not setting --add or --remove flags
+
+	err = cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected error when no labels specified")
+	}
+	if !strings.Contains(err.Error(), "must specify --add and/or --remove") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGmailBatchDeleteCmd_TableOutput(t *testing.T) {
+	origNew := newGmailService
+	t.Cleanup(func() { newGmailService = origNew })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/messages/batchDelete") && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	svc, err := gmail.NewService(context.Background(),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(srv.Client()),
+		option.WithEndpoint(srv.URL+"/"),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	newGmailService = func(context.Context, string) (*gmail.Service, error) { return svc, nil }
+
+	flags := &rootFlags{Account: "a@b.com"}
+
+	var stdoutBuf strings.Builder
+	u, uiErr := ui.New(ui.Options{Stdout: &stdoutBuf, Stderr: io.Discard, Color: "never"})
+	if uiErr != nil {
+		t.Fatalf("ui.New: %v", uiErr)
+	}
+	ctx := ui.WithUI(context.Background(), u)
+	// Not setting JSON mode - should output table format
+
+	cmd := newGmailBatchDeleteCmd(flags)
+	cmd.SetContext(ctx)
+	cmd.SetArgs([]string{"msg1", "msg2", "msg3"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if !strings.Contains(stdoutBuf.String(), "Deleted 3 messages") {
+		t.Fatalf("expected 'Deleted 3 messages' in output, got: %q", stdoutBuf.String())
+	}
+}
