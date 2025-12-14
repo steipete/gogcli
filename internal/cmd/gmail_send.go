@@ -72,7 +72,7 @@ func newGmailSendCmd(flags *rootFlags) *cobra.Command {
 				msg.ThreadId = threadID
 			}
 
-			sent, err := svc.Users.Messages.Send("me", msg).Do()
+			sent, err := svc.Users.Messages.Send("me", msg).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}

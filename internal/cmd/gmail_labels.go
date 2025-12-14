@@ -54,7 +54,7 @@ func newGmailLabelsGetCmd(flags *rootFlags) *cobra.Command {
 				id = v
 			}
 
-			l, err := svc.Users.Labels.Get("me", id).Do()
+			l, err := svc.Users.Labels.Get("me", id).Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func newGmailLabelsListCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			resp, err := svc.Users.Labels.List("me").Do()
+			resp, err := svc.Users.Labels.List("me").Context(cmd.Context()).Do()
 			if err != nil {
 				return err
 			}
@@ -159,7 +159,7 @@ func newGmailLabelsModifyCmd(flags *rootFlags) *cobra.Command {
 				_, err := svc.Users.Threads.Modify("me", tid, &gmail.ModifyThreadRequest{
 					AddLabelIds:    addIDs,
 					RemoveLabelIds: removeIDs,
-				}).Do()
+				}).Context(cmd.Context()).Do()
 				if err != nil {
 					results = append(results, result{ThreadID: tid, Success: false, Error: err.Error()})
 					if !outfmt.IsJSON(cmd.Context()) {

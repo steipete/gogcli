@@ -56,6 +56,7 @@ func newGmailSearchCmd(flags *rootFlags) *cobra.Command {
 				Q(query).
 				MaxResults(max).
 				PageToken(page).
+				Context(cmd.Context()).
 				Do()
 			if err != nil {
 				return err
@@ -83,6 +84,7 @@ func newGmailSearchCmd(flags *rootFlags) *cobra.Command {
 				thread, err := svc.Users.Threads.Get("me", t.Id).
 					Format("metadata").
 					MetadataHeaders("From", "Subject", "Date").
+					Context(cmd.Context()).
 					Do()
 				if err != nil {
 					return err
