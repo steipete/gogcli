@@ -47,6 +47,9 @@ func TestNewServices_HappyPath(t *testing.T) {
 	if svc, err := NewTasks(ctx, "a@b.com"); err != nil || svc == nil {
 		t.Fatalf("NewTasks: %v", err)
 	}
+	if svc, err := NewKeep(ctx, "a@b.com"); err != nil || svc == nil {
+		t.Fatalf("NewKeep: %v", err)
+	}
 }
 
 func TestNewServices_AuthRequired(t *testing.T) {

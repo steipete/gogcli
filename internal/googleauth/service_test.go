@@ -13,6 +13,7 @@ func TestParseService(t *testing.T) {
 		{"drive", ServiceDrive},
 		{"contacts", ServiceContacts},
 		{"tasks", ServiceTasks},
+		{"keep", ServiceKeep},
 	}
 	for _, tt := range tests {
 		got, err := ParseService(tt.in)
@@ -52,14 +53,14 @@ func TestExtractCodeAndState_Errors(t *testing.T) {
 
 func TestAllServices(t *testing.T) {
 	svcs := AllServices()
-	if len(svcs) != 5 {
+	if len(svcs) != 6 {
 		t.Fatalf("unexpected: %v", svcs)
 	}
 	seen := make(map[Service]bool)
 	for _, s := range svcs {
 		seen[s] = true
 	}
-	for _, want := range []Service{ServiceGmail, ServiceCalendar, ServiceDrive, ServiceContacts, ServiceTasks} {
+	for _, want := range []Service{ServiceGmail, ServiceCalendar, ServiceDrive, ServiceContacts, ServiceTasks, ServiceKeep} {
 		if !seen[want] {
 			t.Fatalf("missing %q", want)
 		}
@@ -67,7 +68,7 @@ func TestAllServices(t *testing.T) {
 }
 
 func TestScopesForServices_UnionSorted(t *testing.T) {
-	scopes, err := ScopesForServices([]Service{ServiceContacts, ServiceGmail, ServiceTasks, ServiceContacts})
+	scopes, err := ScopesForServices([]Service{ServiceContacts, ServiceGmail, ServiceTasks, ServiceKeep, ServiceContacts})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -87,6 +88,7 @@ func TestScopesForServices_UnionSorted(t *testing.T) {
 		"https://www.googleapis.com/auth/contacts.other.readonly",
 		"https://www.googleapis.com/auth/directory.readonly",
 		"https://www.googleapis.com/auth/tasks",
+		"https://www.googleapis.com/auth/keep",
 	}
 	for _, w := range want {
 		found := false

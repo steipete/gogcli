@@ -7,6 +7,7 @@ Minimal Google CLI in Go for:
 - Drive
 - Contacts (People API)
 - Tasks
+- Keep
 
 ## Install / Build
 
@@ -33,6 +34,7 @@ Before adding an account you need OAuth2 credentials from Google Cloud Console:
    - Google Drive API: https://console.cloud.google.com/apis/api/drive.googleapis.com
    - People API (Contacts): https://console.cloud.google.com/apis/api/people.googleapis.com
    - Google Tasks API: https://console.cloud.google.com/apis/api/tasks.googleapis.com
+   - Google Keep API: https://console.cloud.google.com/apis/api/keep.googleapis.com
 3. Set app name / branding (OAuth consent screen): https://console.cloud.google.com/auth/branding
 4. If your app is in “Testing”, add test users (all Google accounts you’ll use with `gog`): https://console.cloud.google.com/auth/audience
 5. Create an OAuth client: https://console.cloud.google.com/auth/clients
@@ -49,8 +51,8 @@ Then:
 
 Notes:
 
-- Default is `--services all` (gmail, calendar, drive, contacts, tasks).
-- To request fewer scopes: `gog auth add you@gmail.com --services drive,calendar`.
+- Default is `--services all` (gmail, calendar, drive, contacts, tasks, keep).
+- To request fewer scopes: `gog auth add you@gmail.com --services drive,calendar,keep`.
 - If you add services later and Google doesn’t return a refresh token, re-run with `--force-consent`.
 - `gog auth add ...` overwrites the stored token for that email.
 
@@ -120,6 +122,13 @@ Tasks:
 - `gog tasks undo <tasklistId> <taskId>`
 - `gog tasks delete <tasklistId> <taskId>`
 - `gog tasks clear <tasklistId>`
+
+Keep:
+
+- `gog keep list --page-size 20`
+- `gog keep get <noteName>`
+- `gog keep create --title "Title" --text "Body text"`
+- `gog keep delete <noteName>`
 
 Workspace directory (requires Google Workspace account; `@gmail.com` won’t work):
 
