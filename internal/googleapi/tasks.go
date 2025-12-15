@@ -14,4 +14,3 @@ func NewTasks(ctx context.Context, email string) (*tasks.Service, error) {
 	}
 	return tasks.NewService(ctx, opts...)
 }
-
