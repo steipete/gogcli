@@ -130,8 +130,8 @@ Examples:
 			var values [][]interface{}
 
 			if jsonValues != "" {
-				if err := json.Unmarshal([]byte(jsonValues), &values); err != nil {
-					return fmt.Errorf("invalid JSON values: %w", err)
+				if unmarshalErr := json.Unmarshal([]byte(jsonValues), &values); unmarshalErr != nil {
+					return fmt.Errorf("invalid JSON values: %w", unmarshalErr)
 				}
 			} else if len(args) > 2 {
 				// Parse comma-separated rows, pipe-separated cells
@@ -217,8 +217,8 @@ Examples:
 			var values [][]interface{}
 
 			if jsonValues != "" {
-				if err := json.Unmarshal([]byte(jsonValues), &values); err != nil {
-					return fmt.Errorf("invalid JSON values: %w", err)
+				if unmarshalErr := json.Unmarshal([]byte(jsonValues), &values); unmarshalErr != nil {
+					return fmt.Errorf("invalid JSON values: %w", unmarshalErr)
 				}
 			} else if len(args) > 2 {
 				rawValues := strings.Join(args[2:], " ")
