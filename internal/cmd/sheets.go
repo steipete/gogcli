@@ -282,9 +282,36 @@ func newSheetsClearCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clear <spreadsheetId> <range>",
 		Short: "Clear values in a range",
+		Long:  "Clear all values in a specified range (keeps formatting).",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil // Placeholder
+			u := ui.FromContext(cmd.Context())
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+
+			spreadsheetID := args[0]
+			rangeSpec := args[1]
+
+			svc, err := newSheetsService(cmd.Context(), account)
+			if err != nil {
+				return err
+			}
+
+			resp, err := svc.Spreadsheets.Values.Clear(spreadsheetID, rangeSpec, &sheets.ClearValuesRequest{}).Do()
+			if err != nil {
+				return err
+			}
+
+			if outfmt.IsJSON(cmd.Context()) {
+				return outfmt.WriteJSON(os.Stdout, map[string]any{
+					"clearedRange": resp.ClearedRange,
+				})
+			}
+
+			u.Out().Printf("Cleared %s", resp.ClearedRange)
+			return nil
 		},
 	}
 }
