@@ -189,14 +189,93 @@ Examples:
 }
 
 func newSheetsAppendCmd(flags *rootFlags) *cobra.Command {
-	return &cobra.Command{
-		Use:   "append <spreadsheetId> <range>",
+	var valueInputOption string
+	var insertDataOption string
+	var jsonValues string
+
+	cmd := &cobra.Command{
+		Use:   "append <spreadsheetId> <range> [values...]",
 		Short: "Append values to a range",
-		Args:  cobra.MinimumNArgs(2),
+		Long: `Append values after the last row with data in a range.
+
+Values format same as 'update' command.
+
+Examples:
+  gog sheets append 1BxiMVs... 'Sheet1!A:C' 'val1|val2|val3'
+  gog sheets append 1BxiMVs... 'Sheet1!A:C' --json '[["a","b","c"]]'`,
+		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil // Placeholder
+			u := ui.FromContext(cmd.Context())
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+
+			spreadsheetID := args[0]
+			rangeSpec := args[1]
+
+			var values [][]interface{}
+
+			if jsonValues != "" {
+				if err := json.Unmarshal([]byte(jsonValues), &values); err != nil {
+					return fmt.Errorf("invalid JSON values: %w", err)
+				}
+			} else if len(args) > 2 {
+				rawValues := strings.Join(args[2:], " ")
+				rows := strings.Split(rawValues, ",")
+				for _, row := range rows {
+					cells := strings.Split(strings.TrimSpace(row), "|")
+					rowData := make([]interface{}, len(cells))
+					for i, cell := range cells {
+						rowData[i] = strings.TrimSpace(cell)
+					}
+					values = append(values, rowData)
+				}
+			} else {
+				return fmt.Errorf("provide values as args or via --json")
+			}
+
+			svc, err := newSheetsService(cmd.Context(), account)
+			if err != nil {
+				return err
+			}
+
+			vr := &sheets.ValueRange{
+				Values: values,
+			}
+
+			call := svc.Spreadsheets.Values.Append(spreadsheetID, rangeSpec, vr)
+			if valueInputOption == "" {
+				valueInputOption = "USER_ENTERED"
+			}
+			call = call.ValueInputOption(valueInputOption)
+			if insertDataOption != "" {
+				call = call.InsertDataOption(insertDataOption)
+			}
+
+			resp, err := call.Do()
+			if err != nil {
+				return err
+			}
+
+			if outfmt.IsJSON(cmd.Context()) {
+				return outfmt.WriteJSON(os.Stdout, map[string]any{
+					"updatedRange":   resp.Updates.UpdatedRange,
+					"updatedRows":    resp.Updates.UpdatedRows,
+					"updatedColumns": resp.Updates.UpdatedColumns,
+					"updatedCells":   resp.Updates.UpdatedCells,
+				})
+			}
+
+			u.Out().Printf("Appended %d cells to %s", resp.Updates.UpdatedCells, resp.Updates.UpdatedRange)
+			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&valueInputOption, "input", "USER_ENTERED", "Value input option: RAW or USER_ENTERED")
+	cmd.Flags().StringVar(&insertDataOption, "insert", "", "Insert data option: OVERWRITE or INSERT_ROWS")
+	cmd.Flags().StringVar(&jsonValues, "json", "", "Values as JSON 2D array")
+	return cmd
 }
 
 func newSheetsClearCmd(flags *rootFlags) *cobra.Command {
