@@ -1,11 +1,22 @@
 SHELL := /bin/bash
 
-.PHONY: fmt fmt-check lint test ci tools
+# `make` should build the binary by default.
+.DEFAULT_GOAL := build
+
+.PHONY: build fmt fmt-check lint test ci tools
+
+BIN_DIR := $(CURDIR)/bin
+BIN := $(BIN_DIR)/gog
+CMD := ./cmd/gog
 
 TOOLS_DIR := $(CURDIR)/.tools
 GOFUMPT := $(TOOLS_DIR)/gofumpt
 GOIMPORTS := $(TOOLS_DIR)/goimports
 GOLANGCI_LINT := $(TOOLS_DIR)/golangci-lint
+
+build:
+	@mkdir -p $(BIN_DIR)
+	@go build -o $(BIN) $(CMD)
 
 tools:
 	@mkdir -p $(TOOLS_DIR)
