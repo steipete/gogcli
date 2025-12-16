@@ -377,12 +377,69 @@ func newSheetsMetadataCmd(flags *rootFlags) *cobra.Command {
 }
 
 func newSheetsCreateCmd(flags *rootFlags) *cobra.Command {
-	return &cobra.Command{
+	var sheetNames string
+
+	cmd := &cobra.Command{
 		Use:   "create <title>",
 		Short: "Create a new spreadsheet",
-		Args:  cobra.ExactArgs(1),
+		Long: `Create a new Google Sheets spreadsheet.
+
+Examples:
+  gog sheets create "My Spreadsheet"
+  gog sheets create "Budget" --sheets "Income,Expenses,Summary"`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil // Placeholder
+			u := ui.FromContext(cmd.Context())
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+
+			title := args[0]
+
+			svc, err := newSheetsService(cmd.Context(), account)
+			if err != nil {
+				return err
+			}
+
+			spreadsheet := &sheets.Spreadsheet{
+				Properties: &sheets.SpreadsheetProperties{
+					Title: title,
+				},
+			}
+
+			if sheetNames != "" {
+				names := strings.Split(sheetNames, ",")
+				spreadsheet.Sheets = make([]*sheets.Sheet, len(names))
+				for i, name := range names {
+					spreadsheet.Sheets[i] = &sheets.Sheet{
+						Properties: &sheets.SheetProperties{
+							Title: strings.TrimSpace(name),
+						},
+					}
+				}
+			}
+
+			resp, err := svc.Spreadsheets.Create(spreadsheet).Do()
+			if err != nil {
+				return err
+			}
+
+			if outfmt.IsJSON(cmd.Context()) {
+				return outfmt.WriteJSON(os.Stdout, map[string]any{
+					"spreadsheetId":  resp.SpreadsheetId,
+					"title":          resp.Properties.Title,
+					"spreadsheetUrl": resp.SpreadsheetUrl,
+				})
+			}
+
+			u.Out().Printf("Created spreadsheet: %s", resp.Properties.Title)
+			u.Out().Printf("ID: %s", resp.SpreadsheetId)
+			u.Out().Printf("URL: %s", resp.SpreadsheetUrl)
+			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&sheetNames, "sheets", "", "Comma-separated sheet names to create")
+	return cmd
 }
