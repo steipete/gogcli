@@ -26,6 +26,30 @@ func EnsureDir() (string, error) {
 	return dir, nil
 }
 
+// KeyringDir is where the keyring "file" backend stores encrypted entries.
+//
+// We keep this separate from the main config dir because the file backend creates
+// one file per key.
+func KeyringDir() (string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "keyring"), nil
+}
+
+func EnsureKeyringDir() (string, error) {
+	dir, err := KeyringDir()
+	if err != nil {
+		return "", err
+	}
+	// keyring's file backend uses 0700 by default; match that.
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 func ClientCredentialsPath() (string, error) {
 	dir, err := Dir()
 	if err != nil {

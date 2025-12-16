@@ -31,8 +31,18 @@ type Token struct {
 }
 
 func OpenDefault() (Store, error) {
+	// On Linux/WSL/containers, OS keychains (secret-service/kwallet) may be unavailable.
+	// In that case github.com/99designs/keyring falls back to the "file" backend,
+	// which *requires* both a directory and a password prompt function.
+	keyringDir, err := config.EnsureKeyringDir()
+	if err != nil {
+		return nil, err
+	}
+
 	ring, err := keyring.Open(keyring.Config{
-		ServiceName: config.AppName,
+		ServiceName:      config.AppName,
+		FileDir:          keyringDir,
+		FilePasswordFunc: keyring.TerminalPrompt,
 	})
 	if err != nil {
 		return nil, err
