@@ -132,9 +132,58 @@ func newSheetsMetadataCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "metadata <spreadsheetId>",
 		Short: "Get spreadsheet metadata",
+		Long:  "Get metadata about a spreadsheet including title, sheets, and properties.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil // Placeholder
+			u := ui.FromContext(cmd.Context())
+			account, err := requireAccount(flags)
+			if err != nil {
+				return err
+			}
+
+			spreadsheetID := args[0]
+
+			svc, err := newSheetsService(cmd.Context(), account)
+			if err != nil {
+				return err
+			}
+
+			resp, err := svc.Spreadsheets.Get(spreadsheetID).Do()
+			if err != nil {
+				return err
+			}
+
+			if outfmt.IsJSON(cmd.Context()) {
+				return outfmt.WriteJSON(os.Stdout, map[string]any{
+					"spreadsheetId": resp.SpreadsheetId,
+					"title":         resp.Properties.Title,
+					"locale":        resp.Properties.Locale,
+					"timeZone":      resp.Properties.TimeZone,
+					"sheets":        resp.Sheets,
+				})
+			}
+
+			u.Out().Printf("ID\t%s", resp.SpreadsheetId)
+			u.Out().Printf("Title\t%s", resp.Properties.Title)
+			u.Out().Printf("Locale\t%s", resp.Properties.Locale)
+			u.Out().Printf("TimeZone\t%s", resp.Properties.TimeZone)
+			u.Out().Printf("URL\t%s", resp.SpreadsheetUrl)
+			u.Out().Println("")
+			u.Out().Println("Sheets:")
+
+			tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+			fmt.Fprintln(tw, "ID\tTITLE\tROWS\tCOLS")
+			for _, sheet := range resp.Sheets {
+				props := sheet.Properties
+				fmt.Fprintf(tw, "%d\t%s\t%d\t%d\n",
+					props.SheetId,
+					props.Title,
+					props.GridProperties.RowCount,
+					props.GridProperties.ColumnCount,
+				)
+			}
+			_ = tw.Flush()
+			return nil
 		},
 	}
 }
