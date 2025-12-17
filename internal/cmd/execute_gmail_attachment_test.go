@@ -74,19 +74,19 @@ func TestExecute_GmailAttachment_OutPath_JSON(t *testing.T) {
 	run := func() (string, map[string]any) {
 		out := captureStdout(t, func() {
 			_ = captureStderr(t, func() {
-				if err := Execute([]string{
+				if execErr := Execute([]string{
 					"--output", "json",
 					"--account", "a@b.com",
 					"gmail", "attachment", "m1", "a1",
 					"--out", outPath,
-				}); err != nil {
-					t.Fatalf("Execute: %v", err)
+				}); execErr != nil {
+					t.Fatalf("Execute: %v", execErr)
 				}
 			})
 		})
 		var parsed map[string]any
-		if err := json.Unmarshal([]byte(out), &parsed); err != nil {
-			t.Fatalf("json parse: %v\nout=%q", err, out)
+		if unmarshalErr := json.Unmarshal([]byte(out), &parsed); unmarshalErr != nil {
+			t.Fatalf("json parse: %v\nout=%q", unmarshalErr, out)
 		}
 		return out, parsed
 	}

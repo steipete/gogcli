@@ -45,13 +45,13 @@ func newGmailAttachmentCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			if strings.TrimSpace(outPath) == "" {
-				dir, err := config.EnsureGmailAttachmentsDir()
-				if err != nil {
-					return err
+				dir, dirErr := config.EnsureGmailAttachmentsDir()
+				if dirErr != nil {
+					return dirErr
 				}
-				path, cached, err := downloadAttachment(cmd, svc, messageID, info, dir)
-				if err != nil {
-					return err
+				path, cached, dlErr := downloadAttachment(cmd, svc, messageID, info, dir)
+				if dlErr != nil {
+					return dlErr
 				}
 				if outfmt.IsJSON(cmd.Context()) {
 					return outfmt.WriteJSON(os.Stdout, map[string]any{"path": path, "cached": cached})
