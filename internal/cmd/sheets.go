@@ -16,6 +16,12 @@ import (
 
 var newSheetsService = googleapi.NewSheets
 
+// cleanRange removes shell escape sequences from range arguments.
+// Some shells escape ! to \! (bash history expansion), which breaks Google Sheets API calls.
+func cleanRange(r string) string {
+	return strings.ReplaceAll(r, `\!`, "!")
+}
+
 func newSheetsCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sheets",
@@ -47,7 +53,7 @@ func newSheetsGetCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			spreadsheetID := args[0]
-			rangeSpec := args[1]
+			rangeSpec := cleanRange(args[1])
 
 			svc, err := newSheetsService(cmd.Context(), account)
 			if err != nil {
@@ -125,7 +131,7 @@ Examples:
 			}
 
 			spreadsheetID := args[0]
-			rangeSpec := args[1]
+			rangeSpec := cleanRange(args[1])
 
 			var values [][]interface{}
 
@@ -212,7 +218,7 @@ Examples:
 			}
 
 			spreadsheetID := args[0]
-			rangeSpec := args[1]
+			rangeSpec := cleanRange(args[1])
 
 			var values [][]interface{}
 
@@ -292,7 +298,7 @@ func newSheetsClearCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			spreadsheetID := args[0]
-			rangeSpec := args[1]
+			rangeSpec := cleanRange(args[1])
 
 			svc, err := newSheetsService(cmd.Context(), account)
 			if err != nil {
