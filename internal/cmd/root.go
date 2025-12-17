@@ -89,6 +89,7 @@ func Execute(args []string) error {
 	root.AddCommand(newCalendarCmd(&flags))
 	root.AddCommand(newGmailCmd(&flags))
 	root.AddCommand(newContactsCmd(&flags))
+	root.AddCommand(newSheetsCmd(&flags))
 
 	err := root.Execute()
 	if err == nil {

@@ -31,6 +31,7 @@ Before adding an account you need OAuth2 credentials from Google Cloud Console:
    - Google Calendar API: https://console.cloud.google.com/apis/api/calendar-json.googleapis.com
    - Google Drive API: https://console.cloud.google.com/apis/api/drive.googleapis.com
    - People API (Contacts): https://console.cloud.google.com/apis/api/people.googleapis.com
+   - Google Sheets API: https://console.cloud.google.com/apis/api/sheets.googleapis.com
 3. Set app name / branding (OAuth consent screen): https://console.cloud.google.com/auth/branding
 4. If your app is in “Testing”, add test users (all Google accounts you’ll use with `gog`): https://console.cloud.google.com/auth/audience
 5. Create an OAuth client: https://console.cloud.google.com/auth/clients
@@ -107,7 +108,17 @@ Contacts:
 - `gog contacts get people/...`
 - `gog contacts other list --max 50`
 
-Workspace directory (requires Google Workspace account; `@gmail.com` won’t work):
+Sheets:
+
+- `gog sheets metadata <spreadsheetId>`
+- `gog sheets get <spreadsheetId> 'Sheet1!A1:B10'`
+- `gog sheets update <spreadsheetId> 'A1' 'val1|val2,val3|val4'`
+- `gog sheets update <spreadsheetId> 'A1' --json '[["a","b"],["c","d"]]'`
+- `gog sheets append <spreadsheetId> 'Sheet1!A:C' 'new|row|data'`
+- `gog sheets clear <spreadsheetId> 'Sheet1!A1:B10'`
+- `gog sheets create "My New Spreadsheet" --sheets "Sheet1,Sheet2"`
+
+Workspace directory (requires Google Workspace account; `@gmail.com` won't work):
 
 - `gog contacts directory list --max 50`
 - `gog contacts directory search "Jane" --max 50`
