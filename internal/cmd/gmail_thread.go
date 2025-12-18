@@ -235,11 +235,34 @@ func findPartBody(p *gmail.MessagePart, mimeType string) string {
 }
 
 func decodeBase64URL(s string) (string, error) {
-	b, err := base64.RawURLEncoding.DecodeString(s)
+	b, err := decodeBase64URLBytes(s)
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func decodeBase64URLBytes(s string) ([]byte, error) {
+	s = strings.TrimSpace(s)
+	if strings.ContainsAny(s, " \n\r\t") {
+		b := make([]byte, 0, len(s))
+		for i := 0; i < len(s); i++ {
+			switch s[i] {
+			case ' ', '\n', '\r', '\t':
+				continue
+			default:
+				b = append(b, s[i])
+			}
+		}
+		s = string(b)
+	}
+
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err == nil {
+		return b, nil
+	}
+	// Gmail API returns base64url; some responses include padding.
+	return base64.URLEncoding.DecodeString(s)
 }
 
 func downloadAttachment(cmd *cobra.Command, svc *gmail.Service, messageID string, a attachmentInfo, dir string) (string, bool, error) {
@@ -264,7 +287,7 @@ func downloadAttachment(cmd *cobra.Command, svc *gmail.Service, messageID string
 	if body == nil || body.Data == "" {
 		return "", false, errors.New("empty attachment data")
 	}
-	data, err := base64.RawURLEncoding.DecodeString(body.Data)
+	data, err := decodeBase64URLBytes(body.Data)
 	if err != nil {
 		return "", false, err
 	}
