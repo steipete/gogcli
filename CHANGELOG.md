@@ -6,6 +6,7 @@
 
 - Gmail: HTML bodies for `gmail send` and `gmail drafts create` via `--body-html` (multipart/alternative when combined with `--body`, PR #16 — thanks @shanelindsay).
 - Gmail: `--reply-to-address` (sets `Reply-To` header, PR #16 — thanks @shanelindsay).
+- Tasks: manage tasklists and tasks (`lists`, `list`, `add`, `update`, `done`, `undo`, `delete`, `clear`, PR #10 — thanks @shanelindsay).
 
 ### Changed
 

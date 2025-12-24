@@ -14,19 +14,20 @@ const (
 	ServiceCalendar Service = "calendar"
 	ServiceDrive    Service = "drive"
 	ServiceContacts Service = "contacts"
+	ServiceTasks    Service = "tasks"
 )
 
 func ParseService(s string) (Service, error) {
 	switch Service(strings.ToLower(strings.TrimSpace(s))) {
-	case ServiceGmail, ServiceCalendar, ServiceDrive, ServiceContacts:
+	case ServiceGmail, ServiceCalendar, ServiceDrive, ServiceContacts, ServiceTasks:
 		return Service(strings.ToLower(strings.TrimSpace(s))), nil
 	default:
-		return "", fmt.Errorf("unknown service %q (expected gmail|calendar|drive|contacts)", s)
+		return "", fmt.Errorf("unknown service %q (expected gmail|calendar|drive|contacts|tasks)", s)
 	}
 }
 
 func AllServices() []Service {
-	return []Service{ServiceGmail, ServiceCalendar, ServiceDrive, ServiceContacts}
+	return []Service{ServiceGmail, ServiceCalendar, ServiceDrive, ServiceContacts, ServiceTasks}
 }
 
 func Scopes(service Service) ([]string, error) {
@@ -43,6 +44,8 @@ func Scopes(service Service) ([]string, error) {
 			"https://www.googleapis.com/auth/contacts.other.readonly",
 			"https://www.googleapis.com/auth/directory.readonly",
 		}, nil
+	case ServiceTasks:
+		return []string{"https://www.googleapis.com/auth/tasks"}, nil
 	default:
 		return nil, errors.New("unknown service")
 	}

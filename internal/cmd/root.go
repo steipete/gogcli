@@ -23,7 +23,7 @@ func Execute(args []string) error {
 
 	root := &cobra.Command{
 		Use:           "gog",
-		Short:         "Google CLI for Gmail/Calendar/Drive/Contacts/People",
+		Short:         "Google CLI for Gmail/Calendar/Drive/Contacts/Tasks/People",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		CompletionOptions: cobra.CompletionOptions{
@@ -53,6 +53,10 @@ func Execute(args []string) error {
   gog contacts list --max 50
   gog contacts search "Ada" --max 50
   gog contacts other list --max 50
+
+  # Tasks
+  gog tasks lists --max 50
+  gog tasks list <tasklistId> --max 50
 
   # People
   gog people me
@@ -87,7 +91,7 @@ func Execute(args []string) error {
 
 	root.SetArgs(args)
 	root.PersistentFlags().StringVar(&flags.Color, "color", flags.Color, "Color output: auto|always|never")
-	root.PersistentFlags().StringVar(&flags.Account, "account", "", "Account email for API commands (gmail/calendar/drive/contacts/people)")
+	root.PersistentFlags().StringVar(&flags.Account, "account", "", "Account email for API commands (gmail/calendar/drive/contacts/tasks/people)")
 	root.PersistentFlags().StringVar(&flags.Output, "output", flags.Output, "Output format: text|json")
 
 	root.AddCommand(newAuthCmd())
@@ -95,6 +99,7 @@ func Execute(args []string) error {
 	root.AddCommand(newCalendarCmd(&flags))
 	root.AddCommand(newGmailCmd(&flags))
 	root.AddCommand(newContactsCmd(&flags))
+	root.AddCommand(newTasksCmd(&flags))
 	root.AddCommand(newPeopleCmd(&flags))
 
 	err := root.Execute()

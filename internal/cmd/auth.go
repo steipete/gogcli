@@ -378,7 +378,7 @@ func newAuthAddCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&manual, "manual", false, "Browserless auth flow (paste redirect URL)")
 	cmd.Flags().BoolVar(&forceConsent, "force-consent", false, "Force consent screen to obtain a refresh token")
-	cmd.Flags().StringVar(&servicesCSV, "services", "all", "Services to authorize: all or comma-separated gmail,calendar,drive,contacts")
+	cmd.Flags().StringVar(&servicesCSV, "services", "all", "Services to authorize: all or comma-separated gmail,calendar,drive,contacts,tasks")
 	return cmd
 }
 

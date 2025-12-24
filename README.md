@@ -6,6 +6,7 @@ Minimal Google CLI in Go for:
 - Calendar
 - Drive
 - Contacts (People API)
+- Tasks
 - People (profile / `people/me`)
 
 ## Install / Build
@@ -32,6 +33,7 @@ Before adding an account you need OAuth2 credentials from Google Cloud Console:
    - Google Calendar API: https://console.cloud.google.com/apis/api/calendar-json.googleapis.com
    - Google Drive API: https://console.cloud.google.com/apis/api/drive.googleapis.com
    - People API (Contacts): https://console.cloud.google.com/apis/api/people.googleapis.com
+   - Google Tasks API: https://console.cloud.google.com/apis/api/tasks.googleapis.com
 3. Set app name / branding (OAuth consent screen): https://console.cloud.google.com/auth/branding
 4. If your app is in “Testing”, add test users (all Google accounts you’ll use with `gog`): https://console.cloud.google.com/auth/audience
 5. Create an OAuth client: https://console.cloud.google.com/auth/clients
@@ -49,7 +51,7 @@ Then:
 Notes:
 
 - If no OS keychain backend is available (e.g. Linux/WSL/container), keyring can fall back to an encrypted on-disk store and may prompt for a password; for non-interactive runs set `GOG_KEYRING_PASSWORD`.
-- Default is `--services all` (gmail, calendar, drive, contacts).
+- Default is `--services all` (gmail, calendar, drive, contacts, tasks).
 - To request fewer scopes: `gog auth add you@gmail.com --services drive,calendar`.
 - If you add services later and Google doesn’t return a refresh token, re-run with `--force-consent`.
 - `gog auth add ...` overwrites the stored token for that email.
@@ -111,6 +113,18 @@ Contacts:
 - `gog contacts search "Ada" --max 50`
 - `gog contacts get people/...`
 - `gog contacts other list --max 50`
+
+Tasks:
+
+- `gog tasks lists --max 50`
+- `gog tasks lists create <title>`
+- `gog tasks list <tasklistId> --max 50`
+- `gog tasks add <tasklistId> --title "Task title"`
+- `gog tasks update <tasklistId> <taskId> --title "New title"`
+- `gog tasks done <tasklistId> <taskId>`
+- `gog tasks undo <tasklistId> <taskId>`
+- `gog tasks delete <tasklistId> <taskId>`
+- `gog tasks clear <tasklistId>`
 
 Workspace directory (requires Google Workspace account; `@gmail.com` won’t work):
 

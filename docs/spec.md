@@ -120,7 +120,7 @@ Environment:
 ### Implemented
 
 - `gog auth credentials <credentials.json>`
-- `gog auth add <email> [--services all|gmail,calendar,drive,contacts] [--manual] [--force-consent]`
+- `gog auth add <email> [--services all|gmail,calendar,drive,contacts,tasks] [--manual] [--force-consent]`
 - `gog auth list`
 - `gog auth remove <email>`
 - `gog auth tokens list`
@@ -160,6 +160,15 @@ Environment:
 - `gog gmail drafts create --to a@b.com --subject S [--body B] [--body-html H] [--cc ...] [--bcc ...] [--reply-to <messageId>] [--reply-to-address addr] [--attach <file>...]`
 - `gog gmail drafts send <draftId>`
 - `gog gmail drafts delete <draftId>`
+- `gog tasks lists [--max N] [--page TOKEN]`
+- `gog tasks lists create <title>`
+- `gog tasks list <tasklistId> [--max N] [--page TOKEN]`
+- `gog tasks add <tasklistId> --title T [--notes N] [--due RFC3339] [--parent ID] [--previous ID]`
+- `gog tasks update <tasklistId> <taskId> [--title T] [--notes N] [--due RFC3339] [--status needsAction|completed]`
+- `gog tasks done <tasklistId> <taskId>`
+- `gog tasks undo <tasklistId> <taskId>`
+- `gog tasks delete <tasklistId> <taskId>`
+- `gog tasks clear <tasklistId>`
 - `gog contacts search <query> [--max N]`
 - `gog contacts list [--max N] [--page TOKEN]`
 - `gog contacts get <people/...|email>`
@@ -180,6 +189,7 @@ Environment:
 - `gog calendar …`
 - `gog drive …`
 - `gog contacts …`
+- `gog tasks …`
 - `gog people …`
 
 Planned service identifiers (canonical):
@@ -188,6 +198,7 @@ Planned service identifiers (canonical):
 - `calendar`
 - `drive`
 - `contacts`
+- `tasks`
 - `people`
 
 ## Google API dependencies (planned)
@@ -199,6 +210,7 @@ Planned service identifiers (canonical):
 - `google.golang.org/api/calendar/v3`
 - `google.golang.org/api/drive/v3`
 - `google.golang.org/api/people/v1`
+- `google.golang.org/api/tasks/v1`
 
 ## Scopes (planned)
 
