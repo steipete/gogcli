@@ -4,6 +4,9 @@
 
 ### Added
 
+- Gmail: HTML bodies for `gmail send` and `gmail drafts create` via `--body-html` (multipart/alternative when combined with `--body`, PR #16 — thanks @shanelindsay).
+- Gmail: `--reply-to-address` (sets `Reply-To` header, PR #16 — thanks @shanelindsay).
+
 ### Changed
 
 - Build: `make` builds `./bin/gog` by default (adds `build` target, PR #12 — thanks @advait).

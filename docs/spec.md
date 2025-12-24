@@ -154,10 +154,10 @@ Environment:
 - `gog gmail url <threadIds...>`
 - `gog gmail labels list`
 - `gog gmail labels modify <threadIds...> [--add ...] [--remove ...]`
-- `gog gmail send --to a@b.com --subject S [--body B] [--body-html H] [--cc ...] [--bcc ...] [--reply-to <messageId>] [--attach <file>...]`
+- `gog gmail send --to a@b.com --subject S [--body B] [--body-html H] [--cc ...] [--bcc ...] [--reply-to <messageId>] [--reply-to-address addr] [--attach <file>...]`
 - `gog gmail drafts list [--max N] [--page TOKEN]`
 - `gog gmail drafts get <draftId> [--download]`
-- `gog gmail drafts create --to a@b.com --subject S [--body B] [--body-html H] [--cc ...] [--bcc ...] [--reply-to <messageId>] [--attach <file>...]`
+- `gog gmail drafts create --to a@b.com --subject S [--body B] [--body-html H] [--cc ...] [--bcc ...] [--reply-to <messageId>] [--reply-to-address addr] [--attach <file>...]`
 - `gog gmail drafts send <draftId>`
 - `gog gmail drafts delete <draftId>`
 - `gog contacts search <query> [--max N]`

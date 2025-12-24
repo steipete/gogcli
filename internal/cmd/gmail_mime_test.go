@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,9 @@ func TestBuildRFC822Plain(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	s := string(raw)
+	if !strings.Contains(s, "\r\nMessage-ID: <") {
+		t.Fatalf("missing message-id: %q", s)
+	}
 	if !strings.Contains(s, "Content-Type: text/plain") {
 		t.Fatalf("missing content-type: %q", s)
 	}
@@ -153,6 +157,41 @@ func TestBuildRFC822ReplyToHeader(t *testing.T) {
 	}
 }
 
+func TestBuildRFC822AdditionalHeadersMessageIDIsNotDuplicated(t *testing.T) {
+	raw, err := buildRFC822(mailOptions{
+		From:    "a@b.com",
+		To:      []string{"c@d.com"},
+		Subject: "Hi",
+		Body:    "Hello",
+		AdditionalHeaders: map[string]string{
+			"Message-ID": "<custom@id>",
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	s := string(raw)
+	if strings.Count(s, "\r\nMessage-ID: ") != 1 {
+		t.Fatalf("expected exactly one Message-ID header: %q", s)
+	}
+	if !strings.Contains(s, "\r\nMessage-ID: <custom@id>\r\n") {
+		t.Fatalf("missing custom message-id: %q", s)
+	}
+}
+
+func TestBuildRFC822ReplyToRejectsNewlines(t *testing.T) {
+	_, err := buildRFC822(mailOptions{
+		From:    "a@b.com",
+		To:      []string{"c@d.com"},
+		ReplyTo: "a@b.com\r\nBcc: evil@evil.com",
+		Subject: "Hi",
+		Body:    "Hello",
+	})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+}
+
 func TestEncodeHeaderIfNeeded(t *testing.T) {
 	if got := encodeHeaderIfNeeded("Hello"); got != "Hello" {
 		t.Fatalf("unexpected: %q", got)
@@ -170,5 +209,49 @@ func TestContentDispositionFilename(t *testing.T) {
 	got := contentDispositionFilename("Grüße.txt")
 	if !strings.HasPrefix(got, "filename*=UTF-8''") {
 		t.Fatalf("unexpected: %q", got)
+	}
+}
+
+func TestNormalizeCRLF(t *testing.T) {
+	if got := normalizeCRLF(""); got != "" {
+		t.Fatalf("unexpected: %q", got)
+	}
+
+	got := normalizeCRLF("a\nb\r\nc\rd")
+	if got != "a\r\nb\r\nc\r\nd" {
+		t.Fatalf("unexpected: %q", got)
+	}
+}
+
+func TestHasHeader(t *testing.T) {
+	if hasHeader(nil, "Message-ID") {
+		t.Fatalf("expected false")
+	}
+	if hasHeader(map[string]string{}, "Message-ID") {
+		t.Fatalf("expected false")
+	}
+	if !hasHeader(map[string]string{"message-id": "x"}, "Message-ID") {
+		t.Fatalf("expected true")
+	}
+	if !hasHeader(map[string]string{"Message-Id": "x"}, "message-id") {
+		t.Fatalf("expected true")
+	}
+}
+
+func TestRandomMessageID(t *testing.T) {
+	id, err := randomMessageID("A <a@b.com>")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !regexp.MustCompile(`^<[A-Za-z0-9_-]+@b\.com>$`).MatchString(id) {
+		t.Fatalf("unexpected: %q", id)
+	}
+
+	id, err = randomMessageID("not-an-email")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !regexp.MustCompile(`^<[A-Za-z0-9_-]+@gogcli\.local>$`).MatchString(id) {
+		t.Fatalf("unexpected: %q", id)
 	}
 }
