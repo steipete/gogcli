@@ -488,6 +488,13 @@ gog gmail search 'newer_than:7d has:attachment' --max 10
 gog gmail thread get <threadId> --download
 ```
 
+### Modify labels on a thread
+
+```bash
+# Archive and star a thread
+gog gmail thread modify <threadId> --remove INBOX --add STARRED
+```
+
 ### Create a calendar event with attendees
 
 ```bash
