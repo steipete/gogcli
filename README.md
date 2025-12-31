@@ -174,14 +174,15 @@ gog auth tokens                       # Manage stored refresh tokens
 ```bash
 # Search and read
 gog gmail search 'newer_than:7d' --max 10
-gog gmail thread <threadId>
-gog gmail thread <threadId> --download              # Download attachments to current dir
-gog gmail thread <threadId> --download --out-dir ./attachments
+gog gmail thread get <threadId>
+gog gmail thread get <threadId> --download              # Download attachments to current dir
+gog gmail thread get <threadId> --download --out-dir ./attachments
 gog gmail get <messageId>
 gog gmail get <messageId> --format metadata
 gog gmail attachment <messageId> <attachmentId>
 gog gmail attachment <messageId> <attachmentId> --out ./attachment.bin
 gog gmail url <threadId>              # Print Gmail web URL
+gog gmail thread modify <threadId> --add STARRED --remove INBOX
 
 # Send and compose
 gog gmail send --to a@b.com --subject "Hi" --body "Plain fallback"
@@ -484,7 +485,7 @@ If you use `pnpm`, see the shortcut section for `pnpm -s` (silent) to keep stdou
 gog gmail search 'newer_than:7d has:attachment' --max 10
 
 # Get thread details and download attachments
-gog gmail thread <threadId> --download
+gog gmail thread get <threadId> --download
 ```
 
 ### Create a calendar event with attendees

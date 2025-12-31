@@ -184,7 +184,7 @@ Examples:
 			addLabels := splitCSV(add)
 			removeLabels := splitCSV(remove)
 			if len(addLabels) == 0 && len(removeLabels) == 0 {
-				return errors.New("must specify --add and/or --remove")
+				return usage("must specify --add and/or --remove")
 			}
 
 			svc, err := newGmailService(cmd.Context(), account)

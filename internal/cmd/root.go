@@ -56,7 +56,7 @@ func Execute(args []string) error {
 
 	  # Gmail
 	  gog gmail search 'newer_than:7d' --max 10
-	  gog gmail thread <threadId>
+	  gog gmail thread get <threadId>
 	  gog gmail get <messageId> --format metadata
 	  gog gmail attachment <messageId> <attachmentId> --out ./attachment.bin
 	  gog gmail labels get INBOX --json

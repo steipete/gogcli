@@ -155,7 +155,8 @@ Environment:
 - `gog calendar freebusy <calendarIds> --from RFC3339 --to RFC3339`
 - `gog calendar respond <calendarId> <eventId> --status accepted|declined|tentative [--send-updates all|none|externalOnly]`
 - `gog gmail search <query> [--max N] [--page TOKEN]`
-- `gog gmail thread <threadId> [--download]`
+- `gog gmail thread get <threadId> [--download]`
+- `gog gmail thread modify <threadId> [--add ...] [--remove ...]`
 - `gog gmail get <messageId> [--format full|metadata|raw] [--headers ...]`
 - `gog gmail attachment <messageId> <attachmentId> [--out PATH] [--name NAME]`
 - `gog gmail url <threadIds...>`
