@@ -8,6 +8,8 @@
 
 ### Changed
 
+- Auth: refreshed account manager + success UI (#20) — thanks @salmonumbrella.
+
 ## 0.4.0 - 2025-12-26
 
 ### Added
