@@ -204,7 +204,7 @@ func Authorize(ctx context.Context, opts AuthorizeOptions) (string, error) {
 			_ = srv.Close()
 			return "", errors.New("no refresh token received; try again with --force-consent")
 		}
-		// Keep server running to show success screen; allow cancellation via Ctrl+C
+		// Keep server running so CLI waits for the user to finish auth flow (Ctrl+C ok).
 		waitPostSuccess(ctx, postSuccessDisplaySeconds*time.Second)
 		_ = srv.Close()
 		return tok.RefreshToken, nil
