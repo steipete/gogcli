@@ -70,8 +70,8 @@ if [[ ! -f "$formula_path" ]]; then
   exit 2
 fi
 
-formula_url="$(rg -n '^\s*url ' "$formula_path" | sed -E 's/\s*url "([^"]+)"/\1/')"
-formula_sha="$(rg -n '^\s*sha256 ' "$formula_path" | sed -E 's/\s*sha256 "([^"]+)"/\1/')"
+formula_url="$(rg -m1 '^\s*url ' "$formula_path" | sed -E 's/\s*url "([^"]+)"/\1/' | xargs)"
+formula_sha="$(rg -m1 '^\s*sha256 ' "$formula_path" | sed -E 's/\s*sha256 "([^"]+)"/\1/' | xargs)"
 
 if [[ "$formula_url" != "$sha_url" ]]; then
   echo "formula url mismatch: $formula_url" >&2
