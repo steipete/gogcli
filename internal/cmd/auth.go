@@ -19,11 +19,23 @@ import (
 )
 
 var (
-	openSecretsStore  = secrets.OpenDefault
-	authorizeGoogle   = googleauth.Authorize
-	startManageServer = googleauth.StartManageServer
-	checkRefreshToken = googleauth.CheckRefreshToken
+	openSecretsStore     = secrets.OpenDefault
+	authorizeGoogle      = googleauth.Authorize
+	startManageServer    = googleauth.StartManageServer
+	checkRefreshToken    = googleauth.CheckRefreshToken
+	ensureKeychainAccess = defaultEnsureKeychainAccess
 )
+
+// defaultEnsureKeychainAccess verifies keychain is accessible before starting OAuth flow.
+func defaultEnsureKeychainAccess() error {
+	store, err := secrets.OpenDefault()
+	if err != nil {
+		return fmt.Errorf("keychain access: %w", err)
+	}
+	// Trigger a read to verify keychain access
+	_, _ = store.Keys()
+	return nil
+}
 
 type AuthCmd struct {
 	Credentials AuthCredentialsCmd `cmd:"" name:"credentials" help:"Store OAuth client credentials"`
@@ -299,6 +311,11 @@ type AuthAddCmd struct {
 
 func (c *AuthAddCmd) Run(ctx context.Context) error {
 	u := ui.FromContext(ctx)
+
+	// Verify keychain access before starting the OAuth flow
+	if err := ensureKeychainAccess(); err != nil {
+		return err
+	}
 
 	var services []googleauth.Service
 	if strings.EqualFold(strings.TrimSpace(c.ServicesCSV), "") || strings.EqualFold(strings.TrimSpace(c.ServicesCSV), "all") {
