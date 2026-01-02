@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"google.golang.org/api/gmail/v1"
@@ -15,6 +16,29 @@ import (
 	"github.com/steipete/gogcli/internal/outfmt"
 	"github.com/steipete/gogcli/internal/ui"
 )
+
+// HTML stripping patterns for cleaner text output.
+var (
+	// Remove script blocks entirely (including content)
+	scriptPattern = regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
+	// Remove style blocks entirely (including content)
+	stylePattern = regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
+	// Remove all HTML tags
+	htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
+	// Collapse multiple whitespace/newlines
+	whitespacePattern = regexp.MustCompile(`\s+`)
+)
+
+func stripHTMLTags(s string) string {
+	// First remove script and style blocks entirely
+	s = scriptPattern.ReplaceAllString(s, "")
+	s = stylePattern.ReplaceAllString(s, "")
+	// Then remove remaining HTML tags
+	s = htmlTagPattern.ReplaceAllString(s, " ")
+	// Collapse whitespace
+	s = whitespacePattern.ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
 
 type GmailThreadCmd struct {
 	Get    GmailThreadGetCmd    `cmd:"" name:"get" help:"Get a thread with all messages (optionally download attachments)"`
@@ -103,11 +127,15 @@ func (c *GmailThreadGetCmd) Run(ctx context.Context, flags *RootFlags) error {
 		return nil
 	}
 
-	for _, msg := range thread.Messages {
+	// Show message count upfront so users know how many messages to expect
+	u.Out().Printf("Thread contains %d message(s)\n", len(thread.Messages))
+	u.Out().Println("")
+
+	for i, msg := range thread.Messages {
 		if msg == nil {
 			continue
 		}
-		u.Out().Printf("Message: %s", msg.Id)
+		u.Out().Printf("=== Message %d/%d: %s ===", i+1, len(thread.Messages), msg.Id)
 		u.Out().Printf("From: %s", headerValue(msg.Payload, "From"))
 		u.Out().Printf("To: %s", headerValue(msg.Payload, "To"))
 		u.Out().Printf("Subject: %s", headerValue(msg.Payload, "Subject"))
@@ -116,7 +144,15 @@ func (c *GmailThreadGetCmd) Run(ctx context.Context, flags *RootFlags) error {
 
 		body := bestBodyText(msg.Payload)
 		if body != "" {
-			u.Out().Println(body)
+			// Strip HTML tags for cleaner text output
+			cleanBody := stripHTMLTags(body)
+			// Limit body preview to avoid overwhelming output
+			// Use runes to avoid breaking multi-byte UTF-8 characters
+			runes := []rune(cleanBody)
+			if len(runes) > 500 {
+				cleanBody = string(runes[:500]) + "... [truncated]"
+			}
+			u.Out().Println(cleanBody)
 			u.Out().Println("")
 		}
 
