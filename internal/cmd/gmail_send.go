@@ -54,7 +54,7 @@ func (c *GmailSendCmd) Run(ctx context.Context, flags *RootFlags) error {
 		if err != nil {
 			return fmt.Errorf("invalid --from address %q: %w", c.From, err)
 		}
-		if sa.VerificationStatus != "accepted" {
+		if sa.VerificationStatus != gmailVerificationAccepted {
 			return fmt.Errorf("--from address %q is not verified (status: %s)", c.From, sa.VerificationStatus)
 		}
 		fromAddr = c.From
