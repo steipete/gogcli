@@ -91,7 +91,12 @@ func (s *memSecretsStore) SetDefaultAccount(email string) error {
 
 func TestAuthTokens_ExportImportRoundtrip_JSON(t *testing.T) {
 	origOpen := openSecretsStore
-	t.Cleanup(func() { openSecretsStore = origOpen })
+	origKeychain := ensureKeychainAccess
+	t.Cleanup(func() {
+		openSecretsStore = origOpen
+		ensureKeychainAccess = origKeychain
+	})
+	ensureKeychainAccess = func() error { return nil }
 
 	store := newMemSecretsStore()
 	createdAt := time.Date(2025, 12, 12, 0, 0, 0, 0, time.UTC)

@@ -17,8 +17,9 @@ import (
 )
 
 type GmailThreadCmd struct {
-	Get    GmailThreadGetCmd    `cmd:"" name:"get" help:"Get a thread with all messages (optionally download attachments)"`
-	Modify GmailThreadModifyCmd `cmd:"" name:"modify" help:"Modify labels on all messages in a thread"`
+	Get         GmailThreadGetCmd         `cmd:"" name:"get" help:"Get a thread with all messages (optionally download attachments)"`
+	Modify      GmailThreadModifyCmd      `cmd:"" name:"modify" help:"Modify labels on all messages in a thread"`
+	Attachments GmailThreadAttachmentsCmd `cmd:"" name:"attachments" help:"List all attachments in a thread"`
 }
 
 type GmailThreadGetCmd struct {
@@ -204,6 +205,137 @@ func (c *GmailThreadModifyCmd) Run(ctx context.Context, flags *RootFlags) error 
 
 	u.Out().Printf("Modified thread %s", threadID)
 	return nil
+}
+
+// GmailThreadAttachmentsCmd lists all attachments in a thread.
+type GmailThreadAttachmentsCmd struct {
+	ThreadID string `arg:"" name:"threadId" help:"Thread ID"`
+	Download bool   `name:"download" help:"Download all attachments"`
+	OutDir   string `name:"out-dir" help:"Directory to write attachments to (default: current directory)"`
+}
+
+func (c *GmailThreadAttachmentsCmd) Run(ctx context.Context, flags *RootFlags) error {
+	u := ui.FromContext(ctx)
+	account, err := requireAccount(flags)
+	if err != nil {
+		return err
+	}
+	threadID := strings.TrimSpace(c.ThreadID)
+	if threadID == "" {
+		return usage("empty threadId")
+	}
+
+	svc, err := newGmailService(ctx, account)
+	if err != nil {
+		return err
+	}
+
+	thread, err := svc.Users.Threads.Get("me", threadID).Format("full").Context(ctx).Do()
+	if err != nil {
+		return err
+	}
+
+	if thread == nil || len(thread.Messages) == 0 {
+		if outfmt.IsJSON(ctx) {
+			return outfmt.WriteJSON(os.Stdout, map[string]any{
+				"threadId":    threadID,
+				"attachments": []any{},
+			})
+		}
+		u.Err().Println("Empty thread")
+		return nil
+	}
+
+	var attachDir string
+	if c.Download {
+		if strings.TrimSpace(c.OutDir) == "" {
+			attachDir = "."
+		} else {
+			attachDir = filepath.Clean(c.OutDir)
+		}
+	}
+
+	type attachmentOutput struct {
+		MessageID    string `json:"messageId"`
+		AttachmentID string `json:"attachmentId"`
+		Filename     string `json:"filename"`
+		Size         int64  `json:"size"`
+		SizeHuman    string `json:"sizeHuman"`
+		MimeType     string `json:"mimeType"`
+		Path         string `json:"path,omitempty"`
+		Cached       bool   `json:"cached,omitempty"`
+	}
+
+	var allAttachments []attachmentOutput
+	for _, msg := range thread.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, a := range collectAttachments(msg.Payload) {
+			att := attachmentOutput{
+				MessageID:    msg.Id,
+				AttachmentID: a.AttachmentID,
+				Filename:     a.Filename,
+				Size:         a.Size,
+				SizeHuman:    formatBytes(a.Size),
+				MimeType:     a.MimeType,
+			}
+			if c.Download {
+				outPath, cached, err := downloadAttachment(ctx, svc, msg.Id, a, attachDir)
+				if err != nil {
+					return err
+				}
+				att.Path = outPath
+				att.Cached = cached
+			}
+			allAttachments = append(allAttachments, att)
+		}
+	}
+
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{
+			"threadId":    threadID,
+			"attachments": allAttachments,
+		})
+	}
+
+	if len(allAttachments) == 0 {
+		u.Out().Println("No attachments found")
+		return nil
+	}
+
+	u.Out().Printf("Found %d attachment(s):\n", len(allAttachments))
+	for _, a := range allAttachments {
+		if c.Download {
+			status := "Saved"
+			if a.Cached {
+				status = "Cached"
+			}
+			u.Out().Printf("  %s: %s (%s) - %s", status, a.Filename, a.SizeHuman, a.Path)
+		} else {
+			u.Out().Printf("  - %s (%s) [%s]", a.Filename, a.SizeHuman, a.MimeType)
+		}
+	}
+	return nil
+}
+
+// formatBytes formats bytes into human-readable format.
+func formatBytes(bytes int64) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+		GB = MB * 1024
+	)
+	switch {
+	case bytes >= GB:
+		return fmt.Sprintf("%.1f GB", float64(bytes)/float64(GB))
+	case bytes >= MB:
+		return fmt.Sprintf("%.1f MB", float64(bytes)/float64(MB))
+	case bytes >= KB:
+		return fmt.Sprintf("%.1f KB", float64(bytes)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", bytes)
+	}
 }
 
 type GmailURLCmd struct {

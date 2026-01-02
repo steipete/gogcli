@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	openSecretsStore  = secrets.OpenDefault
-	authorizeGoogle   = googleauth.Authorize
-	startManageServer = googleauth.StartManageServer
-	checkRefreshToken = googleauth.CheckRefreshToken
+	openSecretsStore     = secrets.OpenDefault
+	authorizeGoogle      = googleauth.Authorize
+	startManageServer    = googleauth.StartManageServer
+	checkRefreshToken    = googleauth.CheckRefreshToken
+	ensureKeychainAccess = secrets.EnsureKeychainAccess
 )
 
 type AuthCmd struct {
@@ -268,6 +269,12 @@ func (c *AuthTokensImportCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Pre-flight: ensure keychain is accessible before storing token
+	if err := ensureKeychainAccess(); err != nil {
+		return fmt.Errorf("keychain access: %w", err)
+	}
+
 	if err := store.SetToken(ex.Email, secrets.Token{
 		Email:        ex.Email,
 		Services:     ex.Services,
