@@ -63,6 +63,19 @@ func allowedBackendsFromEnv() ([]keyring.BackendType, error) {
 	}
 }
 
+// wrapKeychainError wraps keychain errors with helpful guidance on macOS.
+func wrapKeychainError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if IsKeychainLockedError(err.Error()) {
+		return fmt.Errorf("%w\n\nYour macOS keychain is locked. To unlock it, run:\n  security unlock-keychain ~/Library/Keychains/login.keychain-db", err)
+	}
+
+	return err
+}
+
 func fileKeyringPasswordFuncFrom(password string, isTTY bool) keyring.PromptFunc {
 	if password != "" {
 		return keyring.FixedStringPrompt(password)
@@ -153,7 +166,7 @@ func (s *KeyringStore) SetToken(email string, tok Token) error {
 		Key:  tokenKey(email),
 		Data: payload,
 	}); err != nil {
-		return fmt.Errorf("store token: %w", err)
+		return wrapKeychainError(fmt.Errorf("store token: %w", err))
 	}
 
 	return nil

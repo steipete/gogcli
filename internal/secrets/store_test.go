@@ -1,6 +1,8 @@
 package secrets
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,5 +98,62 @@ func TestKeyringStore_DefaultAccount_Roundtrip(t *testing.T) {
 
 	if got != "a@b.com" {
 		t.Fatalf("unexpected default: %q", got)
+	}
+}
+
+var (
+	errTestKeychainLocked = errors.New("store token: User Interaction is not allowed. (-25308)")
+	errTestOther          = errors.New("store token: some other error")
+)
+
+func TestWrapKeychainError(t *testing.T) {
+	tests := []struct {
+		name        string
+		err         error
+		wantWrapped bool
+		wantContain string
+	}{
+		{
+			name:        "nil error",
+			err:         nil,
+			wantWrapped: false,
+		},
+		{
+			name:        "keychain locked error",
+			err:         errTestKeychainLocked,
+			wantWrapped: true,
+			wantContain: "security unlock-keychain",
+		},
+		{
+			name:        "other error",
+			err:         errTestOther,
+			wantWrapped: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wrapped := wrapKeychainError(tt.err)
+
+			if tt.err == nil {
+				if wrapped != nil {
+					t.Error("expected nil error to remain nil")
+				}
+
+				return
+			}
+
+			if tt.wantWrapped {
+				if errors.Is(wrapped, tt.err) && wrapped.Error() == tt.err.Error() {
+					t.Error("expected error to be wrapped with additional context")
+				}
+
+				if tt.wantContain != "" && !strings.Contains(wrapped.Error(), tt.wantContain) {
+					t.Errorf("wrapped error %q should contain %q", wrapped.Error(), tt.wantContain)
+				}
+			} else if !errors.Is(wrapped, tt.err) {
+				t.Error("expected error to remain unchanged")
+			}
+		})
 	}
 }
