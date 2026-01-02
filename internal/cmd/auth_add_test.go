@@ -3,11 +3,14 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/steipete/gogcli/internal/googleauth"
 	"github.com/steipete/gogcli/internal/secrets"
+	"github.com/steipete/gogcli/internal/ui"
 )
 
 func TestAuthAddCmd_JSON(t *testing.T) {
@@ -68,5 +71,45 @@ func TestAuthAddCmd_JSON(t *testing.T) {
 	}
 	if tok.RefreshToken != "rt" || !strings.Contains(strings.Join(tok.Services, ","), "gmail") {
 		t.Fatalf("unexpected token: %#v", tok)
+	}
+}
+
+func TestAuthAddCmd_KeychainError(t *testing.T) {
+	origAuth := authorizeGoogle
+	origOpen := openSecretsStore
+	origKeychain := ensureKeychainAccess
+	t.Cleanup(func() {
+		authorizeGoogle = origAuth
+		openSecretsStore = origOpen
+		ensureKeychainAccess = origKeychain
+	})
+
+	// Simulate keychain locked error
+	ensureKeychainAccess = func() error {
+		return errors.New("keychain is locked")
+	}
+
+	authCalled := false
+	authorizeGoogle = func(ctx context.Context, opts googleauth.AuthorizeOptions) (string, error) {
+		authCalled = true
+		return "rt", nil
+	}
+
+	cmd := &AuthAddCmd{Email: "test@example.com", ServicesCSV: "gmail"}
+	u, uiErr := ui.New(ui.Options{Stdout: io.Discard, Stderr: io.Discard, Color: "never"})
+	if uiErr != nil {
+		t.Fatalf("ui.New: %v", uiErr)
+	}
+	ctx := ui.WithUI(context.Background(), u)
+	err := cmd.Run(ctx)
+
+	if err == nil {
+		t.Fatal("expected error when keychain is locked")
+	}
+	if !strings.Contains(err.Error(), "keychain") {
+		t.Errorf("expected error to mention keychain, got: %v", err)
+	}
+	if authCalled {
+		t.Error("authorizeGoogle should not be called when keychain check fails")
 	}
 }
