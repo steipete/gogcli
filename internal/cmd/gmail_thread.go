@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"google.golang.org/api/gmail/v1"
@@ -15,6 +16,22 @@ import (
 	"github.com/steipete/gogcli/internal/outfmt"
 	"github.com/steipete/gogcli/internal/ui"
 )
+
+// HTML stripping patterns for cleaner text output.
+var (
+	scriptPattern     = regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
+	stylePattern      = regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
+	htmlTagPattern    = regexp.MustCompile(`<[^>]*>`)
+	whitespacePattern = regexp.MustCompile(`\s+`)
+)
+
+func stripHTMLTags(s string) string {
+	s = scriptPattern.ReplaceAllString(s, "")
+	s = stylePattern.ReplaceAllString(s, "")
+	s = htmlTagPattern.ReplaceAllString(s, " ")
+	s = whitespacePattern.ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
 
 type GmailThreadCmd struct {
 	Get    GmailThreadGetCmd    `cmd:"" name:"get" help:"Get a thread with all messages (optionally download attachments)"`
@@ -25,6 +42,7 @@ type GmailThreadGetCmd struct {
 	ThreadID string `arg:"" name:"threadId" help:"Thread ID"`
 	Download bool   `name:"download" help:"Download attachments"`
 	OutDir   string `name:"out-dir" help:"Directory to write attachments to (default: current directory)"`
+	Full     bool   `name:"full" help:"Show complete message bodies without truncation"`
 }
 
 func (c *GmailThreadGetCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -103,11 +121,15 @@ func (c *GmailThreadGetCmd) Run(ctx context.Context, flags *RootFlags) error {
 		return nil
 	}
 
-	for _, msg := range thread.Messages {
+	// Show message count upfront so users know how many messages to expect
+	u.Out().Printf("Thread contains %d message(s)\n", len(thread.Messages))
+	u.Out().Println("")
+
+	for i, msg := range thread.Messages {
 		if msg == nil {
 			continue
 		}
-		u.Out().Printf("Message: %s", msg.Id)
+		u.Out().Printf("=== Message %d/%d: %s ===", i+1, len(thread.Messages), msg.Id)
 		u.Out().Printf("From: %s", headerValue(msg.Payload, "From"))
 		u.Out().Printf("To: %s", headerValue(msg.Payload, "To"))
 		u.Out().Printf("Subject: %s", headerValue(msg.Payload, "Subject"))
@@ -116,7 +138,17 @@ func (c *GmailThreadGetCmd) Run(ctx context.Context, flags *RootFlags) error {
 
 		body := bestBodyText(msg.Payload)
 		if body != "" {
-			u.Out().Println(body)
+			// Strip HTML tags for cleaner text output
+			cleanBody := stripHTMLTags(body)
+			// Truncate unless --full is specified
+			if !c.Full {
+				// Use runes to avoid breaking multi-byte UTF-8 characters
+				runes := []rune(cleanBody)
+				if len(runes) > 500 {
+					cleanBody = string(runes[:500]) + "... [truncated, use --full for complete output]"
+				}
+			}
+			u.Out().Println(cleanBody)
 			u.Out().Println("")
 		}
 
