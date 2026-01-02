@@ -20,7 +20,7 @@ type GmailSendCmd struct {
 	Subject          string   `name:"subject" help:"Subject (required)"`
 	Body             string   `name:"body" help:"Body (plain text; required unless --body-html is set)"`
 	BodyHTML         string   `name:"body-html" help:"Body (HTML; optional)"`
-	ReplyToMessageID string   `name:"reply-to-message-id" help:"Reply to Gmail message ID (sets In-Reply-To/References and thread)"`
+	ReplyToMessageID string   `name:"reply-to-message-id" aliases:"thread-id,in-reply-to" help:"Reply to Gmail message ID (sets In-Reply-To/References and thread)"`
 	ReplyTo          string   `name:"reply-to" help:"Reply-To header address"`
 	Attach           []string `name:"attach" help:"Attachment file path (repeatable)"`
 	From             string   `name:"from" help:"Send from this email address (must be a verified send-as alias)"`
