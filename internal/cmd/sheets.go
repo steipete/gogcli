@@ -135,6 +135,7 @@ type SheetsUpdateCmd struct {
 	Values        []string `arg:"" optional:"" name:"values" help:"Values (comma-separated rows, pipe-separated cells)"`
 	ValueInput    string   `name:"input" help:"Value input option: RAW or USER_ENTERED" default:"USER_ENTERED"`
 	ValuesJSON    string   `name:"values-json" help:"Values as JSON 2D array"`
+	CopyValidationFrom string `name:"copy-validation-from" help:"Copy data validation from an A1 range (eg. 'Sheet1'!A2:D2) to the updated cells"`
 }
 
 func (c *SheetsUpdateCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -197,6 +198,15 @@ func (c *SheetsUpdateCmd) Run(ctx context.Context, flags *RootFlags) error {
 		return err
 	}
 
+	if strings.TrimSpace(c.CopyValidationFrom) != "" {
+		if strings.TrimSpace(resp.UpdatedRange) == "" {
+			return fmt.Errorf("update response missing updated range for validation copy")
+		}
+		if err := copyDataValidation(ctx, svc, spreadsheetID, c.CopyValidationFrom, resp.UpdatedRange); err != nil {
+			return err
+		}
+	}
+
 	if outfmt.IsJSON(ctx) {
 		return outfmt.WriteJSON(os.Stdout, map[string]any{
 			"updatedRange":   resp.UpdatedRange,
@@ -217,6 +227,7 @@ type SheetsAppendCmd struct {
 	ValueInput    string   `name:"input" help:"Value input option: RAW or USER_ENTERED" default:"USER_ENTERED"`
 	Insert        string   `name:"insert" help:"Insert data option: OVERWRITE or INSERT_ROWS"`
 	ValuesJSON    string   `name:"values-json" help:"Values as JSON 2D array"`
+	CopyValidationFrom string `name:"copy-validation-from" help:"Copy data validation from an A1 range (eg. 'Sheet1'!A2:D2) to the appended cells"`
 }
 
 func (c *SheetsAppendCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -279,6 +290,15 @@ func (c *SheetsAppendCmd) Run(ctx context.Context, flags *RootFlags) error {
 	resp, err := call.Do()
 	if err != nil {
 		return err
+	}
+
+	if strings.TrimSpace(c.CopyValidationFrom) != "" {
+		if resp.Updates == nil || strings.TrimSpace(resp.Updates.UpdatedRange) == "" {
+			return fmt.Errorf("append response missing updated range for validation copy")
+		}
+		if err := copyDataValidation(ctx, svc, spreadsheetID, c.CopyValidationFrom, resp.Updates.UpdatedRange); err != nil {
+			return err
+		}
 	}
 
 	if outfmt.IsJSON(ctx) {
