@@ -59,9 +59,12 @@ func copyDataValidation(ctx context.Context, svc *sheets.Service, spreadsheetID,
 }
 
 func fetchSheetIDMap(ctx context.Context, svc *sheets.Service, spreadsheetID string) (map[string]int64, error) {
-	resp, err := svc.Spreadsheets.Get(spreadsheetID).
-		Fields("sheets.properties.sheetId", "sheets.properties.title").
-		Do()
+	call := svc.Spreadsheets.Get(spreadsheetID).
+		Fields("sheets.properties.sheetId", "sheets.properties.title")
+	if ctx != nil {
+		call = call.Context(ctx)
+	}
+	resp, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("get spreadsheet metadata: %w", err)
 	}
