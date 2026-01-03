@@ -32,6 +32,7 @@ type AuthCmd struct {
 	Remove      AuthRemoveCmd      `cmd:"" name:"remove" help:"Remove a stored refresh token"`
 	Tokens      AuthTokensCmd      `cmd:"" name:"tokens" help:"Manage stored refresh tokens"`
 	Manage      AuthManageCmd      `cmd:"" name:"manage" help:"Open accounts manager in browser" aliases:"login"`
+	Keep        AuthKeepCmd        `cmd:"" name:"keep" help:"Configure service account for Google Keep (Workspace only)"`
 }
 
 type AuthCredentialsCmd struct {
@@ -503,4 +504,61 @@ func (c *AuthManageCmd) Run(ctx context.Context) error {
 		Services:     services,
 		ForceConsent: c.ForceConsent,
 	})
+}
+
+type AuthKeepCmd struct {
+	Email string `arg:"" name:"email" help:"Email to impersonate when using Keep"`
+	Key   string `name:"key" required:"" help:"Path to service account JSON key file"`
+}
+
+func (c *AuthKeepCmd) Run(ctx context.Context) error {
+	u := ui.FromContext(ctx)
+
+	email := strings.TrimSpace(c.Email)
+	if email == "" {
+		return usage("empty email")
+	}
+
+	keyPath := strings.TrimSpace(c.Key)
+	if keyPath == "" {
+		return usage("empty key path")
+	}
+
+	data, err := os.ReadFile(keyPath) //nolint:gosec // user-provided path
+	if err != nil {
+		return fmt.Errorf("read service account key: %w", err)
+	}
+
+	var saJSON map[string]any
+	if err := json.Unmarshal(data, &saJSON); err != nil {
+		return fmt.Errorf("invalid service account JSON: %w", err)
+	}
+	if saJSON["type"] != "service_account" {
+		return fmt.Errorf("invalid service account JSON: expected type=service_account")
+	}
+
+	destPath, err := config.KeepServiceAccountPath(email)
+	if err != nil {
+		return err
+	}
+
+	if _, err := config.EnsureDir(); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(destPath, data, 0o600); err != nil {
+		return fmt.Errorf("write service account: %w", err)
+	}
+
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{
+			"stored": true,
+			"email":  email,
+			"path":   destPath,
+		})
+	}
+	u.Out().Printf("email\t%s", email)
+	u.Out().Printf("path\t%s", destPath)
+	u.Out().Println("Keep service account configured. Use: gog keep list --account " + email)
+	return nil
 }
