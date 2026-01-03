@@ -218,6 +218,7 @@ func (c *KeepGetCmd) Run(ctx context.Context, flags *RootFlags, keep *KeepCmd) e
 
 type KeepAttachmentCmd struct {
 	AttachmentName string `arg:"" name:"attachmentName" help:"Attachment name (e.g. notes/abc123/attachments/xyz789)"`
+	MimeType       string `name:"mime-type" help:"MIME type of attachment (e.g. image/jpeg)" default:"application/octet-stream"`
 	Out            string `name:"out" help:"Output file path (default: attachment filename or ID)"`
 }
 
@@ -234,7 +235,7 @@ func (c *KeepAttachmentCmd) Run(ctx context.Context, flags *RootFlags, keep *Kee
 		return fmt.Errorf("invalid attachment name format, expected: notes/<noteId>/attachments/<attachmentId>")
 	}
 
-	resp, err := svc.Media.Download(name).Download()
+	resp, err := svc.Media.Download(name).MimeType(c.MimeType).Download()
 	if err != nil {
 		return fmt.Errorf("download attachment: %w", err)
 	}
