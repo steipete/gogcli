@@ -130,7 +130,7 @@ Environment:
 ### Implemented
 
 - `gog auth credentials <credentials.json|->`
-- `gog auth add <email> [--services all|gmail,calendar,drive,contacts,tasks,people] [--manual] [--force-consent]`
+- `gog auth add <email> [--services all|gmail,calendar,drive,docs,contacts,tasks,people] [--manual] [--force-consent]`
 - `gog auth list`
 - `gog auth status`
 - `gog auth remove <email>`
