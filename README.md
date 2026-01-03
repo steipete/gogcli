@@ -135,6 +135,23 @@ gog auth add you@gmail.com --services sheets --force-consent
 - `GOG_COLOR` - Color mode: `auto` (default), `always`, or `never`
 - `GOG_KEYRING_BACKEND` - Force keyring backend: `auto` (default), `keychain`, or `file` (use `file` to avoid Keychain prompts; pair with `GOG_KEYRING_PASSWORD`)
 - `GOG_KEYRING_PASSWORD` - Password for encrypted on-disk keyring (Linux/WSL/container environments without OS keychain)
+
+### Config File (JSON5)
+
+Config file path:
+
+```
+$(os.UserConfigDir())/gogcli/config.json
+```
+
+Example (JSON5 supports comments and trailing commas):
+
+```json5
+{
+  // Avoid macOS Keychain prompts
+  keyring_backend: "file",
+}
+```
  
 ## Security
 
@@ -148,6 +165,17 @@ OAuth credentials are stored securely in your system's keychain:
 The CLI uses [github.com/99designs/keyring](https://github.com/99designs/keyring) for secure storage.
 
 If no OS keychain backend is available (e.g., Linux/WSL/container), keyring can fall back to an encrypted on-disk store and may prompt for a password; for non-interactive runs set `GOG_KEYRING_PASSWORD`.
+
+### Keychain Prompts (macOS)
+
+macOS Keychain may prompt more than you’d expect when the “app identity” keeps changing (different binary path, `go run` temp builds, rebuilding to new `./bin/gog`, multiple copies). Keychain treats those as different apps, so it asks again.
+
+Options:
+
+- **Default (recommended):** keep using Keychain (secure) and run a stable `gog` binary path to reduce repeat prompts.
+- **Force Keychain:** `GOG_KEYRING_BACKEND=keychain` (disables any file-backend fallback).
+- **Avoid Keychain prompts entirely:** `GOG_KEYRING_BACKEND=file` (stores encrypted entries on disk under your config dir).
+  - To avoid password prompts too (CI/non-interactive): set `GOG_KEYRING_PASSWORD=...` (tradeoff: secret in env).
 
 ### Best Practices
 
@@ -475,8 +503,6 @@ Useful pattern:
 
 - `gog --json ... | jq .`
 
-If you use `pnpm`, see the shortcut section for `pnpm -s` (silent) to keep stdout clean.
-
 ## Examples
 
 ### Search recent emails and download attachments
@@ -661,17 +687,29 @@ Pinned tools (installed into `.tools/`):
 
 CI runs format checks, tests, and lint on push/PR.
 
-### pnpm Shortcut
+### Integration Tests (Live Google APIs)
 
-Build and run in one step:
+Opt-in tests that hit real Google APIs using your stored `gog` credentials/tokens.
 
 ```bash
-pnpm gog auth add you@gmail.com
+# Optional: override which account to use
+export GOG_IT_ACCOUNT=you@gmail.com
+go test -tags=integration ./...
+```
+
+Tip: if you want to avoid macOS Keychain prompts during these runs, set `GOG_KEYRING_BACKEND=file` and `GOG_KEYRING_PASSWORD=...` (uses encrypted on-disk keyring).
+
+### Make Shortcut
+
+Build and run:
+
+```bash
+make gog ARGS='auth add you@gmail.com'
 ```
 
 For clean stdout when scripting:
 
-- `pnpm -s gog --json gmail search "from:me" | jq .`
+- `make gog ARGS='--json gmail search "from:me"' | jq .`
 
 ## License
 

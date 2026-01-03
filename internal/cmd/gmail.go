@@ -40,7 +40,7 @@ type GmailCmd struct {
 
 type GmailSearchCmd struct {
 	Query []string `arg:"" name:"query" help:"Search query"`
-	Max   int64    `name:"max" help:"Max results" default:"10"`
+	Max   int64    `name:"max" aliases:"limit" help:"Max results" default:"10"`
 	Page  string   `name:"page" help:"Page token"`
 }
 

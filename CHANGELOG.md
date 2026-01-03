@@ -1,9 +1,14 @@
 # Changelog
 
-## 0.4.3 - Unreleased
+## 0.5.0 - Unreleased
 
+- Config: add JSON5 `config.json` (comments ok) and `gog auth status`/help now show keyring backend + config path.
 - Auth: `gog auth list --check` validates refresh tokens by exchanging for an access token.
+- Auth: OAuth browser flow now finishes immediately after callback (no 30s “stuck” delay).
+- Homebrew: tap now installs GitHub release binaries (macOS) to reduce Keychain prompt churn.
 - Secrets: add `GOG_KEYRING_BACKEND={auto|keychain|file}` to force backend (use `file` to avoid Keychain prompts; pair with `GOG_KEYRING_PASSWORD`).
+- Docs: explain macOS Keychain prompts and backend options.
+- DX: remove pnpm wrapper; use `make gog`.
 
 ## 0.4.2 - 2025-12-31
 
@@ -137,7 +142,7 @@ Initial public release of `gog`: a single Go CLI that unifies Gmail, Calendar, D
   - Linting via pinned `golangci-lint` with repo config.
   - Tests using stdlib `testing` + `httptest`, with steadily increased unit coverage.
   - GitHub Actions CI running format checks, tests, and lint.
-  - `pnpm gog` helper to build+run (`pnpm gog auth add you@gmail.com`).
+  - `make` builds `./bin/gog` for local dev (`make && ./bin/gog auth add you@gmail.com`).
 
 ### Notes / Known Limitations
 

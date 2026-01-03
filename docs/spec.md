@@ -109,6 +109,7 @@ Scope selection note:
 
 - Base config dir: `$(os.UserConfigDir())/gogcli/`
 - Files:
+  - `config.json` (JSON5; comments and trailing commas allowed)
   - `credentials.json` (OAuth client id/secret)
 - State:
   - `state/gmail-watch/<account>.json` (Gmail watch state)
@@ -122,6 +123,7 @@ Environment:
 - `GOG_ACCOUNT=you@gmail.com` (used when `--account` is not set)
 - `GOG_KEYRING_PASSWORD=...` (used when keyring falls back to encrypted file backend in non-interactive environments)
 - `GOG_KEYRING_BACKEND={auto|keychain|file}` (force backend; use `file` to avoid Keychain prompts and pair with `GOG_KEYRING_PASSWORD` for non-interactive)
+- `config.json` can also set `keyring_backend` (JSON5; env vars take precedence)
 
 ## Commands (current + planned)
 
@@ -130,6 +132,7 @@ Environment:
 - `gog auth credentials <credentials.json|->`
 - `gog auth add <email> [--services all|gmail,calendar,drive,contacts,tasks,people] [--manual] [--force-consent]`
 - `gog auth list`
+- `gog auth status`
 - `gog auth remove <email>`
 - `gog auth tokens list`
 - `gog auth tokens delete <email>`

@@ -34,7 +34,7 @@ type CalendarCmd struct {
 }
 
 type CalendarCalendarsCmd struct {
-	Max  int64  `name:"max" help:"Max results" default:"100"`
+	Max  int64  `name:"max" aliases:"limit" help:"Max results" default:"100"`
 	Page string `name:"page" help:"Page token"`
 }
 
@@ -77,7 +77,7 @@ func (c *CalendarCalendarsCmd) Run(ctx context.Context, flags *RootFlags) error 
 
 type CalendarAclCmd struct {
 	CalendarID string `arg:"" name:"calendarId" help:"Calendar ID"`
-	Max        int64  `name:"max" help:"Max results" default:"100"`
+	Max        int64  `name:"max" aliases:"limit" help:"Max results" default:"100"`
 	Page       string `name:"page" help:"Page token"`
 }
 
@@ -132,7 +132,7 @@ type CalendarEventsCmd struct {
 	CalendarID string `arg:"" name:"calendarId" optional:"" help:"Calendar ID"`
 	From       string `name:"from" help:"Start time (RFC3339; default: now)"`
 	To         string `name:"to" help:"End time (RFC3339; default: +7d)"`
-	Max        int64  `name:"max" help:"Max results" default:"10"`
+	Max        int64  `name:"max" aliases:"limit" help:"Max results" default:"10"`
 	Page       string `name:"page" help:"Page token"`
 	Query      string `name:"query" help:"Free text search"`
 	All        bool   `name:"all" help:"Fetch events from all calendars"`

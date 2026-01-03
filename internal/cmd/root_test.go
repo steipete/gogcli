@@ -27,6 +27,9 @@ func TestExecute_Help(t *testing.T) {
 	if !strings.Contains(out, "Google CLI") && !strings.Contains(out, "Usage:") {
 		t.Fatalf("unexpected help output: %q", out)
 	}
+	if !strings.Contains(out, "config.json") || !strings.Contains(out, "keyring backend") {
+		t.Fatalf("expected config info in help output: %q", out)
+	}
 }
 
 func TestExecute_UnknownCommand(t *testing.T) {

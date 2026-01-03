@@ -9,8 +9,10 @@ import (
 
 	"github.com/alecthomas/kong"
 
+	"github.com/steipete/gogcli/internal/config"
 	"github.com/steipete/gogcli/internal/errfmt"
 	"github.com/steipete/gogcli/internal/outfmt"
+	"github.com/steipete/gogcli/internal/secrets"
 	"github.com/steipete/gogcli/internal/ui"
 )
 
@@ -59,7 +61,7 @@ func Execute(args []string) (err error) {
 	parser, err := kong.New(
 		cli,
 		kong.Name("gog"),
-		kong.Description("Google CLI for Gmail/Calendar/Drive/Contacts/Tasks/Sheets/Docs/Slides/People/Keep"),
+		kong.Description(helpDescription()),
 		kong.Vars(vars),
 		kong.Writers(os.Stdout, os.Stderr),
 		kong.Exit(func(code int) { panic(exitPanic{code: code}) }),
@@ -159,6 +161,28 @@ func boolString(v bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func helpDescription() string {
+	desc := "Google CLI for Gmail/Calendar/Drive/Contacts/Tasks/Sheets/Docs/Slides/People/Keep"
+
+	configPath, err := config.ConfigPath()
+	configLine := "unknown"
+	if err != nil {
+		configLine = fmt.Sprintf("error: %v", err)
+	} else if configPath != "" {
+		configLine = configPath
+	}
+
+	backendInfo, err := secrets.ResolveKeyringBackendInfo()
+	backendLine := "unknown"
+	if err != nil {
+		backendLine = fmt.Sprintf("error: %v", err)
+	} else {
+		backendLine = fmt.Sprintf("%s (source: %s)", backendInfo.Value, backendInfo.Source)
+	}
+
+	return fmt.Sprintf("%s\n\nConfig:\n  file: %s\n  keyring backend: %s", desc, configLine, backendLine)
 }
 
 // newUsageError wraps errors in a way main() can map to exit code 2.
