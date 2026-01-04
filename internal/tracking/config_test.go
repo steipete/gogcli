@@ -1,11 +1,15 @@
 package tracking
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestConfigRoundTrip(t *testing.T) {
 	// Use temp dir
 	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, "xdg-config"))
 
 	cfg := &Config{
 		Enabled:     true,
@@ -36,7 +40,8 @@ func TestConfigRoundTrip(t *testing.T) {
 
 func TestLoadConfigMissing(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, "xdg-config"))
 
 	cfg, err := LoadConfig()
 	if err != nil {
