@@ -145,3 +145,37 @@ func TestValidateSendUpdates(t *testing.T) {
 		})
 	}
 }
+
+func TestParseAttendee(t *testing.T) {
+	tests := []struct {
+		input    string
+		email    string
+		optional bool
+		comment  string
+		isNil    bool
+	}{
+		{"alice@example.com", "alice@example.com", false, "", false},
+		{"bob@example.com;optional", "bob@example.com", true, "", false},
+		{"carol@example.com;comment=FYI only", "carol@example.com", false, "FYI only", false},
+		{"dave@example.com;OPTIONAL;comment=Hi", "dave@example.com", true, "Hi", false},
+		{";optional", "", false, "", true},
+		{"", "", false, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseAttendee(tt.input)
+			if tt.isNil {
+				if got != nil {
+					t.Fatalf("expected nil attendee, got %#v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("expected attendee, got nil")
+			}
+			if got.Email != tt.email || got.Optional != tt.optional || got.Comment != tt.comment {
+				t.Fatalf("unexpected attendee: %#v", got)
+			}
+		})
+	}
+}

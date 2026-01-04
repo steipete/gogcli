@@ -766,9 +766,38 @@ func buildAttendees(csv string) []*calendar.EventAttendee {
 	}
 	out := make([]*calendar.EventAttendee, 0, len(addrs))
 	for _, a := range addrs {
-		out = append(out, &calendar.EventAttendee{Email: a})
+		attendee := parseAttendee(a)
+		if attendee != nil {
+			out = append(out, attendee)
+		}
 	}
 	return out
+}
+
+func parseAttendee(s string) *calendar.EventAttendee {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ";")
+	email := strings.TrimSpace(parts[0])
+	if email == "" {
+		return nil
+	}
+
+	attendee := &calendar.EventAttendee{Email: email}
+	for _, p := range parts[1:] {
+		raw := strings.TrimSpace(p)
+		lower := strings.ToLower(raw)
+		if lower == "optional" {
+			attendee.Optional = true
+			continue
+		}
+		if strings.HasPrefix(lower, "comment=") {
+			attendee.Comment = strings.TrimSpace(raw[len("comment="):])
+		}
+	}
+	return attendee
 }
 
 func splitCSV(s string) []string {
