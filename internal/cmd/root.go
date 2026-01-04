@@ -18,7 +18,7 @@ import (
 
 type RootFlags struct {
 	Color   string `help:"Color output: auto|always|never" default:"${color}"`
-	Account string `help:"Account email for API commands (gmail/calendar/drive/docs/slides/contacts/tasks/people/sheets)"`
+	Account string `help:"Account email for API commands (gmail/calendar/drive/docs/slides/contacts/tasks/people/sheets/keep)"`
 	JSON    bool   `help:"Output JSON to stdout (best for scripting)" default:"${json}"`
 	Plain   bool   `help:"Output stable, parseable text to stdout (TSV; no colors)" default:"${plain}"`
 	Force   bool   `help:"Skip confirmations for destructive commands"`
@@ -41,6 +41,7 @@ type CLI struct {
 	Tasks      TasksCmd      `cmd:"" help:"Google Tasks"`
 	People     PeopleCmd     `cmd:"" help:"Google People"`
 	Sheets     SheetsCmd     `cmd:"" help:"Google Sheets"`
+	Keep       KeepCmd       `cmd:"" help:"Google Keep (Workspace only)"`
 	VersionCmd VersionCmd    `cmd:"" name:"version" help:"Print version"`
 	Completion CompletionCmd `cmd:"" help:"Generate shell completion scripts"`
 }
@@ -163,7 +164,7 @@ func boolString(v bool) string {
 }
 
 func helpDescription() string {
-	desc := "Google CLI for Gmail/Calendar/Drive/Contacts/Tasks/Sheets/Docs/Slides/People"
+	desc := "Google CLI for Gmail/Calendar/Drive/Contacts/Tasks/Sheets/Docs/Slides/People/Keep"
 
 	configPath, err := config.ConfigPath()
 	configLine := "unknown"

@@ -119,6 +119,15 @@ func GmailWatchDir() (string, error) {
 	return filepath.Join(dir, "state", "gmail-watch"), nil
 }
 
+func KeepServiceAccountPath(email string) (string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, fmt.Sprintf("keep-sa-%s.json", email)), nil
+}
+
 func EnsureGmailWatchDir() (string, error) {
 	dir, err := GmailWatchDir()
 	if err != nil {
