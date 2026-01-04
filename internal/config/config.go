@@ -16,7 +16,7 @@ type File struct {
 func ConfigPath() (string, error) {
 	dir, err := Dir()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("config dir: %w", err)
 	}
 
 	return filepath.Join(dir, "config.json"), nil
@@ -32,7 +32,8 @@ func ConfigExists() (bool, error) {
 		if os.IsNotExist(statErr) {
 			return false, nil
 		}
-		return false, statErr
+
+		return false, fmt.Errorf("stat config: %w", statErr)
 	}
 
 	return true, nil
@@ -49,6 +50,7 @@ func ReadConfig() (File, error) {
 		if os.IsNotExist(err) {
 			return File{}, nil
 		}
+
 		return File{}, fmt.Errorf("read config: %w", err)
 	}
 
@@ -58,5 +60,6 @@ func ReadConfig() (File, error) {
 	}
 
 	cfg.KeyringBackend = strings.ToLower(strings.TrimSpace(cfg.KeyringBackend))
+
 	return cfg, nil
 }

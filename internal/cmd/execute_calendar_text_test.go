@@ -56,7 +56,7 @@ func TestExecute_CalendarEvent_Text(t *testing.T) {
 			}
 		})
 	})
-	if !strings.Contains(out, "id\te1") || !strings.Contains(out, "location\tRoom 1") || !strings.Contains(out, "attendees\ta@b.com, b@b.com") || !strings.Contains(out, "link\thttps://example.com/e1") {
+	if !strings.Contains(out, "id\te1") || !strings.Contains(out, "location\tRoom 1") || !strings.Contains(out, "attendee\ta@b.com\t") || !strings.Contains(out, "attendee\tb@b.com\t") || !strings.Contains(out, "link\thttps://example.com/e1") {
 		t.Fatalf("unexpected out=%q", out)
 	}
 }

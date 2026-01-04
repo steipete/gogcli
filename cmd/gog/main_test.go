@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -24,7 +25,7 @@ func TestMainExitOnError(t *testing.T) {
 		return
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run", "^TestMainExitOnError$")
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run", "^TestMainExitOnError$")
 	cmd.Env = append(os.Environ(), "GOGCLI_TEST_CHILD=1")
 	err := cmd.Run()
 	if err == nil {

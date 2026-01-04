@@ -187,7 +187,7 @@ func TestManageServer_HandleOAuthCallback_ErrorAndValidation(t *testing.T) {
 		oauthState: "state1",
 	}
 	// Need a listener for redirectURI generation even though we don't reach exchange.
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestManageServer_HandleAuthStart(t *testing.T) {
 	randomStateFn = func() (string, error) { return "state123", nil }
 	oauthEndpoint = oauth2.Endpoint{AuthURL: "http://example.com/auth", TokenURL: "http://example.com/token"}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
@@ -506,7 +506,7 @@ func TestManageServer_HandleOAuthCallback_Success(t *testing.T) {
 
 	oauthEndpoint = oauth2.Endpoint{AuthURL: "http://example.com/auth", TokenURL: srv.URL}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
