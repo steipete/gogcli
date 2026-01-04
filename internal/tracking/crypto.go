@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -16,6 +17,8 @@ type PixelPayload struct {
 	SubjectHash string `json:"s"`
 	SentAt      int64  `json:"t"`
 }
+
+var errCiphertextTooShort = errors.New("ciphertext too short")
 
 // Encrypt encrypts a PixelPayload into a URL-safe base64 blob using AES-GCM
 func Encrypt(payload *PixelPayload, keyBase64 string) (string, error) {
@@ -73,7 +76,7 @@ func Decrypt(blob string, keyBase64 string) (*PixelPayload, error) {
 	}
 
 	if len(ciphertext) < aead.NonceSize() {
-		return nil, fmt.Errorf("ciphertext too short")
+		return nil, errCiphertextTooShort
 	}
 
 	nonce := ciphertext[:aead.NonceSize()]
@@ -96,7 +99,8 @@ func Decrypt(blob string, keyBase64 string) (*PixelPayload, error) {
 func GenerateKey() (string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
-		return "", err
+		return "", fmt.Errorf("generate key: %w", err)
 	}
+
 	return base64.StdEncoding.EncodeToString(key), nil
 }

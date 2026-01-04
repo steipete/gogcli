@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -18,8 +19,9 @@ type Config struct {
 func ConfigPath() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("user config dir: %w", err)
 	}
+
 	return filepath.Join(configDir, "gog", "tracking.json"), nil
 }
 
@@ -30,17 +32,19 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	// #nosec G304 -- path is derived from user config dir
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &Config{Enabled: false}, nil
 		}
-		return nil, err
+
+		return nil, fmt.Errorf("read tracking config: %w", err)
 	}
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse tracking config: %w", err)
 	}
 
 	return &cfg, nil
@@ -54,16 +58,20 @@ func SaveConfig(cfg *Config) error {
 	}
 
 	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+	if mkErr := os.MkdirAll(filepath.Dir(path), 0o700); mkErr != nil {
+		return fmt.Errorf("create tracking config dir: %w", mkErr)
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal tracking config: %w", err)
 	}
 
-	return os.WriteFile(path, data, 0o600)
+	if writeErr := os.WriteFile(path, data, 0o600); writeErr != nil {
+		return fmt.Errorf("write tracking config: %w", writeErr)
+	}
+
+	return nil
 }
 
 // IsConfigured returns true if tracking is set up

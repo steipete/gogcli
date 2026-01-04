@@ -37,13 +37,18 @@ func (c *GmailTrackOpensCmd) Run(ctx context.Context, flags *RootFlags) error {
 	}
 
 	// Query via admin endpoint
-	return c.queryAdmin(ctx, cfg, u, flags)
+	return c.queryAdmin(ctx, cfg, u)
 }
 
 func (c *GmailTrackOpensCmd) queryByTrackingID(ctx context.Context, cfg *tracking.Config, u *ui.UI) error {
 	reqURL := fmt.Sprintf("%s/q/%s", cfg.WorkerURL, c.TrackingID)
 
-	resp, err := http.Get(reqURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("query tracker: %w", err)
 	}
@@ -88,7 +93,7 @@ func (c *GmailTrackOpensCmd) queryByTrackingID(ctx context.Context, cfg *trackin
 	return nil
 }
 
-func (c *GmailTrackOpensCmd) queryAdmin(ctx context.Context, cfg *tracking.Config, u *ui.UI, flags *RootFlags) error {
+func (c *GmailTrackOpensCmd) queryAdmin(ctx context.Context, cfg *tracking.Config, u *ui.UI) error {
 	reqURL, _ := url.Parse(cfg.WorkerURL + "/opens")
 	q := reqURL.Query()
 	if c.To != "" {

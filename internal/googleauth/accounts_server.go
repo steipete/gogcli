@@ -61,7 +61,7 @@ func StartManageServer(ctx context.Context, opts ManageServerOptions) error {
 		return fmt.Errorf("failed to generate CSRF token: %w", err)
 	}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return fmt.Errorf("failed to start listener: %w", err)
 	}

@@ -31,7 +31,7 @@ func TestBuildWorkingLocationProperties(t *testing.T) {
 	}
 
 	cmd = &CalendarWorkingLocationCmd{Type: "custom"}
-	if _, err := cmd.buildWorkingLocationProperties(); err == nil {
+	if _, buildErr := cmd.buildWorkingLocationProperties(); buildErr == nil {
 		t.Fatalf("expected error for missing custom label")
 	}
 
@@ -45,7 +45,7 @@ func TestBuildWorkingLocationProperties(t *testing.T) {
 	}
 
 	cmd = &CalendarWorkingLocationCmd{Type: "invalid"}
-	if _, err := cmd.buildWorkingLocationProperties(); err == nil {
+	if _, buildErr := cmd.buildWorkingLocationProperties(); buildErr == nil {
 		t.Fatalf("expected error for invalid type")
 	}
 }

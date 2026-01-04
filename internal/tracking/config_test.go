@@ -30,9 +30,11 @@ func TestConfigRoundTrip(t *testing.T) {
 	if loaded.WorkerURL != cfg.WorkerURL {
 		t.Errorf("WorkerURL mismatch: got %q, want %q", loaded.WorkerURL, cfg.WorkerURL)
 	}
+
 	if loaded.TrackingKey != cfg.TrackingKey {
 		t.Errorf("TrackingKey mismatch: got %q, want %q", loaded.TrackingKey, cfg.TrackingKey)
 	}
+
 	if !loaded.IsConfigured() {
 		t.Error("IsConfigured should return true")
 	}
@@ -51,6 +53,7 @@ func TestLoadConfigMissing(t *testing.T) {
 	if cfg.Enabled {
 		t.Error("Expected Enabled to be false for missing config")
 	}
+
 	if cfg.IsConfigured() {
 		t.Error("IsConfigured should return false for missing config")
 	}

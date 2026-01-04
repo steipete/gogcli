@@ -131,7 +131,7 @@ func Authorize(ctx context.Context, opts AuthorizeOptions) (string, error) {
 		return tok.RefreshToken, nil
 	}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", fmt.Errorf("listen for callback: %w", err)
 	}
