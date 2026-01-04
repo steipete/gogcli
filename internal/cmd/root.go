@@ -177,7 +177,7 @@ func helpDescription() string {
 	backendLine := "unknown"
 	if err != nil {
 		backendLine = fmt.Sprintf("error: %v", err)
-	} else {
+	} else if backendInfo.Value != "" {
 		backendLine = fmt.Sprintf("%s (source: %s)", backendInfo.Value, backendInfo.Source)
 	}
 

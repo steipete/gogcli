@@ -16,7 +16,7 @@ type File struct {
 func ConfigPath() (string, error) {
 	dir, err := Dir()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("config dir: %w", err)
 	}
 
 	return filepath.Join(dir, "config.json"), nil
@@ -25,14 +25,15 @@ func ConfigPath() (string, error) {
 func ConfigExists() (bool, error) {
 	path, err := ConfigPath()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("config path: %w", err)
 	}
 
 	if _, statErr := os.Stat(path); statErr != nil {
 		if os.IsNotExist(statErr) {
 			return false, nil
 		}
-		return false, statErr
+
+		return false, fmt.Errorf("stat config: %w", statErr)
 	}
 
 	return true, nil
@@ -41,14 +42,16 @@ func ConfigExists() (bool, error) {
 func ReadConfig() (File, error) {
 	path, err := ConfigPath()
 	if err != nil {
-		return File{}, err
+		return File{}, fmt.Errorf("config path: %w", err)
 	}
 
-	b, err := os.ReadFile(path) //nolint:gosec // config file path
+	//nolint:gosec // path is within the user config dir
+	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return File{}, nil
 		}
+
 		return File{}, fmt.Errorf("read config: %w", err)
 	}
 
@@ -58,5 +61,6 @@ func ReadConfig() (File, error) {
 	}
 
 	cfg.KeyringBackend = strings.ToLower(strings.TrimSpace(cfg.KeyringBackend))
+
 	return cfg, nil
 }

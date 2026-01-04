@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"google.golang.org/api/calendar/v3"
+	gapi "google.golang.org/api/googleapi"
 
 	"github.com/steipete/gogcli/internal/googleapi"
 	"github.com/steipete/gogcli/internal/outfmt"
@@ -129,13 +130,16 @@ func (c *CalendarAclCmd) Run(ctx context.Context, flags *RootFlags) error {
 }
 
 type CalendarEventsCmd struct {
-	CalendarID string `arg:"" name:"calendarId" optional:"" help:"Calendar ID"`
-	From       string `name:"from" help:"Start time (RFC3339; default: now)"`
-	To         string `name:"to" help:"End time (RFC3339; default: +7d)"`
-	Max        int64  `name:"max" aliases:"limit" help:"Max results" default:"10"`
-	Page       string `name:"page" help:"Page token"`
-	Query      string `name:"query" help:"Free text search"`
-	All        bool   `name:"all" help:"Fetch events from all calendars"`
+	CalendarID        string `arg:"" name:"calendarId" optional:"" help:"Calendar ID"`
+	From              string `name:"from" help:"Start time (RFC3339; default: now)"`
+	To                string `name:"to" help:"End time (RFC3339; default: +7d)"`
+	Max               int64  `name:"max" aliases:"limit" help:"Max results" default:"10"`
+	Page              string `name:"page" help:"Page token"`
+	Query             string `name:"query" help:"Free text search"`
+	All               bool   `name:"all" help:"Fetch events from all calendars"`
+	PrivatePropFilter string `name:"private-prop-filter" help:"Filter by private extended property (key=value)"`
+	SharedPropFilter  string `name:"shared-prop-filter" help:"Filter by shared extended property (key=value)"`
+	Fields            string `name:"fields" help:"Comma-separated fields to return"`
 }
 
 func (c *CalendarEventsCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -168,10 +172,10 @@ func (c *CalendarEventsCmd) Run(ctx context.Context, flags *RootFlags) error {
 	}
 
 	if c.All {
-		return listAllCalendarsEvents(ctx, svc, from, to, c.Max, c.Page, c.Query)
+		return listAllCalendarsEvents(ctx, svc, from, to, c.Max, c.Page, c.Query, c.PrivatePropFilter, c.SharedPropFilter, c.Fields)
 	}
 	calendarID := strings.TrimSpace(c.CalendarID)
-	return listCalendarEvents(ctx, svc, calendarID, from, to, c.Max, c.Page, c.Query)
+	return listCalendarEvents(ctx, svc, calendarID, from, to, c.Max, c.Page, c.Query, c.PrivatePropFilter, c.SharedPropFilter, c.Fields)
 }
 
 type CalendarEventCmd struct {
@@ -446,7 +450,7 @@ func (c *CalendarFreeBusyCmd) Run(ctx context.Context, flags *RootFlags) error {
 	return nil
 }
 
-func listCalendarEvents(ctx context.Context, svc *calendar.Service, calendarID, from, to string, maxResults int64, page, query string) error {
+func listCalendarEvents(ctx context.Context, svc *calendar.Service, calendarID, from, to string, maxResults int64, page, query, privatePropFilter, sharedPropFilter, fields string) error {
 	u := ui.FromContext(ctx)
 
 	call := svc.Events.List(calendarID).
@@ -458,6 +462,15 @@ func listCalendarEvents(ctx context.Context, svc *calendar.Service, calendarID, 
 		OrderBy("startTime")
 	if strings.TrimSpace(query) != "" {
 		call = call.Q(query)
+	}
+	if strings.TrimSpace(privatePropFilter) != "" {
+		call = call.PrivateExtendedProperty(privatePropFilter)
+	}
+	if strings.TrimSpace(sharedPropFilter) != "" {
+		call = call.SharedExtendedProperty(sharedPropFilter)
+	}
+	if strings.TrimSpace(fields) != "" {
+		call = call.Fields(gapi.Field(fields))
 	}
 	resp, err := call.Context(ctx).Do()
 	if err != nil {
@@ -491,7 +504,7 @@ type eventWithCalendar struct {
 	CalendarID string
 }
 
-func listAllCalendarsEvents(ctx context.Context, svc *calendar.Service, from, to string, maxResults int64, page, query string) error {
+func listAllCalendarsEvents(ctx context.Context, svc *calendar.Service, from, to string, maxResults int64, page, query, privatePropFilter, sharedPropFilter, fields string) error {
 	u := ui.FromContext(ctx)
 
 	calResp, err := svc.CalendarList.List().Context(ctx).Do()
@@ -505,23 +518,33 @@ func listAllCalendarsEvents(ctx context.Context, svc *calendar.Service, from, to
 	}
 
 	all := []*eventWithCalendar{}
-	for _, c := range calResp.Items {
-		events, err := svc.Events.List(c.Id).
+	for _, cal := range calResp.Items {
+		call := svc.Events.List(cal.Id).
 			TimeMin(from).
 			TimeMax(to).
 			MaxResults(maxResults).
 			PageToken(page).
 			SingleEvents(true).
-			OrderBy("startTime").
-			Q(query).
-			Context(ctx).
-			Do()
+			OrderBy("startTime")
+		if strings.TrimSpace(query) != "" {
+			call = call.Q(query)
+		}
+		if strings.TrimSpace(privatePropFilter) != "" {
+			call = call.PrivateExtendedProperty(privatePropFilter)
+		}
+		if strings.TrimSpace(sharedPropFilter) != "" {
+			call = call.SharedExtendedProperty(sharedPropFilter)
+		}
+		if strings.TrimSpace(fields) != "" {
+			call = call.Fields(gapi.Field(fields))
+		}
+		events, err := call.Context(ctx).Do()
 		if err != nil {
-			u.Err().Printf("calendar %s: %v", c.Id, err)
+			u.Err().Printf("calendar %s: %v", cal.Id, err)
 			continue
 		}
 		for _, e := range events.Items {
-			all = append(all, &eventWithCalendar{Event: e, CalendarID: c.Id})
+			all = append(all, &eventWithCalendar{Event: e, CalendarID: cal.Id})
 		}
 	}
 
