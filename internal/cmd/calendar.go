@@ -33,6 +33,7 @@ type CalendarCmd struct {
 	Conflicts CalendarConflictsCmd `cmd:"" name:"conflicts" help:"Find conflicts"`
 	Search    CalendarSearchCmd    `cmd:"" name:"search" help:"Search events"`
 	Time      CalendarTimeCmd      `cmd:"" name:"time" help:"Show server time"`
+	FocusTime CalendarFocusTimeCmd `cmd:"" name:"focus-time" help:"Create a Focus Time block"`
 }
 
 type CalendarCalendarsCmd struct {
@@ -284,13 +285,13 @@ func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
 		ConferenceData: buildConferenceData(c.WithMeet),
 	}
 	if c.GuestsCanInviteOthers != nil {
-		event.GuestsCanInviteOthers = *c.GuestsCanInviteOthers
+		event.GuestsCanInviteOthers = c.GuestsCanInviteOthers
 	}
 	if c.GuestsCanModify != nil {
 		event.GuestsCanModify = *c.GuestsCanModify
 	}
 	if c.GuestsCanSeeOthers != nil {
-		event.GuestsCanSeeOtherGuests = *c.GuestsCanSeeOthers
+		event.GuestsCanSeeOtherGuests = c.GuestsCanSeeOthers
 	}
 
 	call := svc.Events.Insert(calendarID, event)
@@ -403,7 +404,7 @@ func (c *CalendarUpdateCmd) Run(ctx context.Context, kctx *kong.Context, flags *
 	}
 	if flagProvided(kctx, "guests-can-invite") {
 		if c.GuestsCanInviteOthers != nil {
-			patch.GuestsCanInviteOthers = *c.GuestsCanInviteOthers
+			patch.GuestsCanInviteOthers = c.GuestsCanInviteOthers
 		}
 		patch.ForceSendFields = append(patch.ForceSendFields, "GuestsCanInviteOthers")
 		changed = true
@@ -417,7 +418,7 @@ func (c *CalendarUpdateCmd) Run(ctx context.Context, kctx *kong.Context, flags *
 	}
 	if flagProvided(kctx, "guests-can-see-others") {
 		if c.GuestsCanSeeOthers != nil {
-			patch.GuestsCanSeeOtherGuests = *c.GuestsCanSeeOthers
+			patch.GuestsCanSeeOtherGuests = c.GuestsCanSeeOthers
 		}
 		patch.ForceSendFields = append(patch.ForceSendFields, "GuestsCanSeeOtherGuests")
 		changed = true
@@ -685,13 +686,13 @@ func printCalendarEvent(u *ui.UI, event *calendar.Event) {
 	if event.Transparency == "transparent" {
 		u.Out().Printf("show-as\tfree")
 	}
-	if !event.GuestsCanInviteOthers {
+	if event.GuestsCanInviteOthers != nil && !*event.GuestsCanInviteOthers {
 		u.Out().Printf("guests-can-invite\tfalse")
 	}
 	if event.GuestsCanModify {
 		u.Out().Printf("guests-can-modify\ttrue")
 	}
-	if !event.GuestsCanSeeOtherGuests {
+	if event.GuestsCanSeeOtherGuests != nil && !*event.GuestsCanSeeOtherGuests {
 		u.Out().Printf("guests-can-see-others\tfalse")
 	}
 	if event.HangoutLink != "" {
@@ -740,6 +741,20 @@ func buildConferenceData(withMeet bool) *calendar.ConferenceData {
 			},
 		},
 	}
+}
+
+func buildRecurrence(rules []string) []string {
+	if len(rules) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(rules))
+	for _, r := range rules {
+		r = strings.TrimSpace(r)
+		if r != "" {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 func buildAttendees(csv string) []*calendar.EventAttendee {
