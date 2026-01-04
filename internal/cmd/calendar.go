@@ -34,6 +34,7 @@ type CalendarCmd struct {
 	Search    CalendarSearchCmd    `cmd:"" name:"search" help:"Search events"`
 	Time      CalendarTimeCmd      `cmd:"" name:"time" help:"Show server time"`
 	FocusTime CalendarFocusTimeCmd `cmd:"" name:"focus-time" help:"Create a Focus Time block"`
+	OOO       CalendarOOOCmd       `cmd:"" name:"out-of-office" aliases:"ooo" help:"Create an Out of Office event"`
 }
 
 type CalendarCalendarsCmd struct {
