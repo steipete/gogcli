@@ -11,6 +11,7 @@ import (
 	"google.golang.org/api/gmail/v1"
 
 	"github.com/steipete/gogcli/internal/outfmt"
+	"github.com/steipete/gogcli/internal/tracking"
 	"github.com/steipete/gogcli/internal/ui"
 )
 
@@ -27,6 +28,7 @@ type GmailSendCmd struct {
 	ReplyTo          string   `name:"reply-to" help:"Reply-To header address"`
 	Attach           []string `name:"attach" help:"Attachment file path (repeatable)"`
 	From             string   `name:"from" help:"Send from this email address (must be a verified send-as alias)"`
+	Track            bool     `name:"track" help:"Enable open tracking (requires tracking setup)"`
 }
 
 func (c *GmailSendCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -116,6 +118,34 @@ func (c *GmailSendCmd) Run(ctx context.Context, flags *RootFlags) error {
 		atts = append(atts, mailAttachment{Path: p})
 	}
 
+	// Handle tracking
+	var trackingID string
+	htmlBody := c.BodyHTML
+	if c.Track {
+		trackingCfg, err := tracking.LoadConfig()
+		if err != nil {
+			return fmt.Errorf("load tracking config: %w", err)
+		}
+		if !trackingCfg.IsConfigured() {
+			return fmt.Errorf("tracking not configured; run 'gog gmail track setup' first")
+		}
+		if strings.TrimSpace(htmlBody) == "" {
+			return fmt.Errorf("--track requires --body-html (pixel must be in HTML)")
+		}
+
+		// Use first recipient for tracking
+		firstRecipient := strings.Split(c.To, ",")[0]
+		pixelURL, blob, err := tracking.GeneratePixelURL(trackingCfg, strings.TrimSpace(firstRecipient), c.Subject)
+		if err != nil {
+			return fmt.Errorf("generate tracking pixel: %w", err)
+		}
+		trackingID = blob
+
+		// Inject pixel at end of HTML body
+		pixelHTML := tracking.GeneratePixelHTML(pixelURL)
+		htmlBody = htmlBody + pixelHTML
+	}
+
 	raw, err := buildRFC822(mailOptions{
 		From:        fromAddr,
 		To:          toRecipients,
@@ -124,7 +154,7 @@ func (c *GmailSendCmd) Run(ctx context.Context, flags *RootFlags) error {
 		ReplyTo:     c.ReplyTo,
 		Subject:     c.Subject,
 		Body:        c.Body,
-		BodyHTML:    c.BodyHTML,
+		BodyHTML:    htmlBody,
 		InReplyTo:   replyInfo.InReplyTo,
 		References:  replyInfo.References,
 		Attachments: atts,
@@ -145,15 +175,22 @@ func (c *GmailSendCmd) Run(ctx context.Context, flags *RootFlags) error {
 		return err
 	}
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{
+		resp := map[string]any{
 			"messageId": sent.Id,
 			"threadId":  sent.ThreadId,
 			"from":      fromAddr,
-		})
+		}
+		if trackingID != "" {
+			resp["tracking_id"] = trackingID
+		}
+		return outfmt.WriteJSON(os.Stdout, resp)
 	}
 	u.Out().Printf("message_id\t%s", sent.Id)
 	if sent.ThreadId != "" {
 		u.Out().Printf("thread_id\t%s", sent.ThreadId)
+	}
+	if trackingID != "" {
+		u.Out().Printf("tracking_id\t%s", trackingID)
 	}
 	return nil
 }
