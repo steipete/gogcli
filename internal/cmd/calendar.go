@@ -225,6 +225,7 @@ type CalendarCreateCmd struct {
 	Attendees   string `name:"attendees" help:"Comma-separated attendee emails"`
 	AllDay      bool   `name:"all-day" help:"All-day event (use date-only in --from/--to)"`
 	ColorId     string `name:"color" help:"Event color ID (1-11). Use 'gog calendar colors' to see available colors."`
+	Visibility  string `name:"visibility" help:"Event visibility: default, public, private, confidential"`
 }
 
 func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -246,6 +247,10 @@ func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
 	if err != nil {
 		return err
 	}
+	visibility, err := validateVisibility(c.Visibility)
+	if err != nil {
+		return err
+	}
 
 	svc, err := newCalendarService(ctx, account)
 	if err != nil {
@@ -260,6 +265,7 @@ func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
 		End:         buildEventDateTime(c.To, c.AllDay),
 		Attendees:   buildAttendees(c.Attendees),
 		ColorId:     colorId,
+		Visibility:  visibility,
 	}
 
 	created, err := svc.Events.Insert(calendarID, event).Do()
@@ -284,6 +290,7 @@ type CalendarUpdateCmd struct {
 	Attendees   string `name:"attendees" help:"Comma-separated attendee emails (set empty to clear)"`
 	AllDay      bool   `name:"all-day" help:"All-day event (use date-only in --from/--to)"`
 	ColorId     string `name:"color" help:"Event color ID (1-11, or empty to clear)"`
+	Visibility  string `name:"visibility" help:"Event visibility: default, public, private, confidential"`
 }
 
 func (c *CalendarUpdateCmd) Run(ctx context.Context, kctx *kong.Context, flags *RootFlags) error {
@@ -340,6 +347,14 @@ func (c *CalendarUpdateCmd) Run(ctx context.Context, kctx *kong.Context, flags *
 			return colorErr
 		}
 		patch.ColorId = colorId
+		changed = true
+	}
+	if flagProvided(kctx, "visibility") {
+		visibility, visErr := validateVisibility(c.Visibility)
+		if visErr != nil {
+			return visErr
+		}
+		patch.Visibility = visibility
 		changed = true
 	}
 	if !changed {
@@ -599,6 +614,9 @@ func printCalendarEvent(u *ui.UI, event *calendar.Event) {
 	if event.ColorId != "" {
 		u.Out().Printf("color\t%s", event.ColorId)
 	}
+	if event.Visibility != "" && event.Visibility != "default" {
+		u.Out().Printf("visibility\t%s", event.Visibility)
+	}
 	if len(event.Attendees) > 0 {
 		emails := []string{}
 		for _, a := range event.Attendees {
@@ -662,6 +680,23 @@ func validateColorId(s string) (string, error) {
 	}
 	if id < 1 || id > 11 {
 		return "", fmt.Errorf("color ID must be 1-11 (got %d)", id)
+	}
+	return s, nil
+}
+
+func validateVisibility(s string) (string, error) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if s == "" {
+		return "", nil
+	}
+	valid := map[string]bool{
+		"default":      true,
+		"public":       true,
+		"private":      true,
+		"confidential": true,
+	}
+	if !valid[s] {
+		return "", fmt.Errorf("invalid visibility: %q (must be default, public, private, or confidential)", s)
 	}
 	return s, nil
 }

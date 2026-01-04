@@ -62,3 +62,31 @@ func TestBuildColorId(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateVisibility(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{"default", "default", false},
+		{"public", "public", false},
+		{"private", "private", false},
+		{"confidential", "confidential", false},
+		{"DEFAULT", "default", false},
+		{"", "", false},
+		{"invalid", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := validateVisibility(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateVisibility(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("validateVisibility(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
