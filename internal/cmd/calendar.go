@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -211,14 +213,16 @@ func (c *CalendarEventCmd) Run(ctx context.Context, flags *RootFlags) error {
 }
 
 type CalendarCreateCmd struct {
-	CalendarID  string `arg:"" name:"calendarId" help:"Calendar ID"`
-	Summary     string `name:"summary" help:"Event summary/title"`
-	From        string `name:"from" help:"Start time (RFC3339)"`
-	To          string `name:"to" help:"End time (RFC3339)"`
-	Description string `name:"description" help:"Description"`
-	Location    string `name:"location" help:"Location"`
-	Attendees   string `name:"attendees" help:"Comma-separated attendee emails"`
-	AllDay      bool   `name:"all-day" help:"All-day event (use date-only in --from/--to)"`
+	CalendarID  string   `arg:"" name:"calendarId" help:"Calendar ID"`
+	Summary     string   `name:"summary" help:"Event summary/title"`
+	From        string   `name:"from" help:"Start time (RFC3339)"`
+	To          string   `name:"to" help:"End time (RFC3339)"`
+	Description string   `name:"description" help:"Description"`
+	Location    string   `name:"location" help:"Location"`
+	Attendees   string   `name:"attendees" help:"Comma-separated attendee emails"`
+	AllDay      bool     `name:"all-day" help:"All-day event (use date-only in --from/--to)"`
+	Recurrence  []string `name:"rrule" help:"Recurrence rules (e.g., 'RRULE:FREQ=MONTHLY;BYMONTHDAY=11'). Can be repeated."`
+	Reminders   []string `name:"reminder" help:"Custom reminders as method:duration (e.g., popup:30m, email:1d). Can be repeated (max 5)."`
 }
 
 func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
@@ -236,6 +240,11 @@ func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
 		return usage("required: --summary, --from, --to")
 	}
 
+	reminders, err := buildReminders(c.Reminders)
+	if err != nil {
+		return err
+	}
+
 	svc, err := newCalendarService(ctx, account)
 	if err != nil {
 		return err
@@ -248,6 +257,8 @@ func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
 		Start:       buildEventDateTime(c.From, c.AllDay),
 		End:         buildEventDateTime(c.To, c.AllDay),
 		Attendees:   buildAttendees(c.Attendees),
+		Recurrence:  buildRecurrence(c.Recurrence),
+		Reminders:   reminders,
 	}
 
 	created, err := svc.Events.Insert(calendarID, event).Do()
@@ -262,15 +273,17 @@ func (c *CalendarCreateCmd) Run(ctx context.Context, flags *RootFlags) error {
 }
 
 type CalendarUpdateCmd struct {
-	CalendarID  string `arg:"" name:"calendarId" help:"Calendar ID"`
-	EventID     string `arg:"" name:"eventId" help:"Event ID"`
-	Summary     string `name:"summary" help:"New summary/title (set empty to clear)"`
-	From        string `name:"from" help:"New start time (RFC3339; set empty to clear)"`
-	To          string `name:"to" help:"New end time (RFC3339; set empty to clear)"`
-	Description string `name:"description" help:"New description (set empty to clear)"`
-	Location    string `name:"location" help:"New location (set empty to clear)"`
-	Attendees   string `name:"attendees" help:"Comma-separated attendee emails (set empty to clear)"`
-	AllDay      bool   `name:"all-day" help:"All-day event (use date-only in --from/--to)"`
+	CalendarID  string   `arg:"" name:"calendarId" help:"Calendar ID"`
+	EventID     string   `arg:"" name:"eventId" help:"Event ID"`
+	Summary     string   `name:"summary" help:"New summary/title (set empty to clear)"`
+	From        string   `name:"from" help:"New start time (RFC3339; set empty to clear)"`
+	To          string   `name:"to" help:"New end time (RFC3339; set empty to clear)"`
+	Description string   `name:"description" help:"New description (set empty to clear)"`
+	Location    string   `name:"location" help:"New location (set empty to clear)"`
+	Attendees   string   `name:"attendees" help:"Comma-separated attendee emails (set empty to clear)"`
+	AllDay      bool     `name:"all-day" help:"All-day event (use date-only in --from/--to)"`
+	Recurrence  []string `name:"rrule" help:"Recurrence rules (e.g., 'RRULE:FREQ=MONTHLY;BYMONTHDAY=11'). Can be repeated. Set empty to clear."`
+	Reminders   []string `name:"reminder" help:"Custom reminders as method:duration (e.g., popup:30m, email:1d). Can be repeated (max 5). Set empty to clear."`
 }
 
 func (c *CalendarUpdateCmd) Run(ctx context.Context, kctx *kong.Context, flags *RootFlags) error {
@@ -319,6 +332,18 @@ func (c *CalendarUpdateCmd) Run(ctx context.Context, kctx *kong.Context, flags *
 	}
 	if flagProvided(kctx, "attendees") {
 		patch.Attendees = buildAttendees(c.Attendees)
+		changed = true
+	}
+	if flagProvided(kctx, "rrule") {
+		patch.Recurrence = buildRecurrence(c.Recurrence)
+		changed = true
+	}
+	if flagProvided(kctx, "reminder") {
+		reminders, reminderErr := buildReminders(c.Reminders)
+		if reminderErr != nil {
+			return reminderErr
+		}
+		patch.Reminders = reminders
 		changed = true
 	}
 	if !changed {
@@ -567,6 +592,22 @@ func printCalendarEvent(u *ui.UI, event *calendar.Event) {
 			u.Out().Printf("attendees\t%s", strings.Join(emails, ", "))
 		}
 	}
+	if len(event.Recurrence) > 0 {
+		u.Out().Printf("recurrence\t%s", strings.Join(event.Recurrence, "; "))
+	}
+	if event.Reminders != nil {
+		if event.Reminders.UseDefault {
+			u.Out().Printf("reminders\t(calendar default)")
+		} else if len(event.Reminders.Overrides) > 0 {
+			reminders := make([]string, 0, len(event.Reminders.Overrides))
+			for _, r := range event.Reminders.Overrides {
+				if r != nil {
+					reminders = append(reminders, fmt.Sprintf("%s:%dm", r.Method, r.Minutes))
+				}
+			}
+			u.Out().Printf("reminders\t%s", strings.Join(reminders, ", "))
+		}
+	}
 	if event.HtmlLink != "" {
 		u.Out().Printf("link\t%s", event.HtmlLink)
 	}
@@ -637,4 +678,132 @@ func orEmpty(s string, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+// buildRecurrence returns recurrence rules, filtering out empty strings.
+func buildRecurrence(rules []string) []string {
+	if len(rules) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(rules))
+	for _, r := range rules {
+		r = strings.TrimSpace(r)
+		if r != "" {
+			out = append(out, r)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// durationRegex matches duration strings like "30m", "1h", "3d", "1w", or raw minutes.
+var durationRegex = regexp.MustCompile(`^(\d+)(w|d|h|m)?$`)
+
+// parseDuration parses a duration string into minutes.
+// Supports: raw minutes (e.g., "60"), or suffixed durations (e.g., "30m", "1h", "3d", "1w").
+func parseDuration(s string) (int64, error) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if s == "" {
+		return 0, fmt.Errorf("empty duration")
+	}
+
+	match := durationRegex.FindStringSubmatch(s)
+	if match == nil {
+		return 0, fmt.Errorf("invalid duration format: %q (expected e.g., 30, 30m, 1h, 3d, 1w)", s)
+	}
+
+	value, err := strconv.ParseInt(match[1], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration number: %q", match[1])
+	}
+
+	unit := match[2]
+	switch unit {
+	case "w":
+		value *= 7 * 24 * 60 // weeks to minutes
+	case "d":
+		value *= 24 * 60 // days to minutes
+	case "h":
+		value *= 60 // hours to minutes
+	case "m", "":
+		// already in minutes (or raw number treated as minutes)
+	}
+
+	// Google Calendar API limit: 0-40320 minutes (4 weeks)
+	if value < 0 || value > 40320 {
+		return 0, fmt.Errorf("reminder duration must be 0-40320 minutes (got %d)", value)
+	}
+
+	return value, nil
+}
+
+// parseReminder parses a reminder string like "popup:30m" or "email:3d" into method and minutes.
+func parseReminder(s string) (method string, minutes int64, err error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", 0, fmt.Errorf("empty reminder")
+	}
+
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return "", 0, fmt.Errorf("invalid reminder format: %q (expected method:duration, e.g., popup:30m)", s)
+	}
+
+	method = strings.TrimSpace(strings.ToLower(parts[0]))
+	if method != "email" && method != "popup" {
+		return "", 0, fmt.Errorf("invalid reminder method: %q (expected 'email' or 'popup')", method)
+	}
+
+	minutes, err = parseDuration(parts[1])
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid reminder duration: %w", err)
+	}
+
+	return method, minutes, nil
+}
+
+// buildReminders parses reminder strings and returns EventReminders.
+// Returns nil if no reminders are provided, which means calendar defaults apply.
+//
+//nolint:nilnil // nil return is intentional: nil means "use calendar defaults"
+func buildReminders(reminders []string) (*calendar.EventReminders, error) {
+	if len(reminders) == 0 {
+		return nil, nil
+	}
+
+	// Filter out empty strings first
+	var filtered []string
+	for _, r := range reminders {
+		if strings.TrimSpace(r) != "" {
+			filtered = append(filtered, r)
+		}
+	}
+
+	if len(filtered) == 0 {
+		// Empty reminder list means use calendar defaults
+		return nil, nil
+	}
+
+	if len(filtered) > 5 {
+		return nil, fmt.Errorf("maximum 5 reminders allowed (got %d)", len(filtered))
+	}
+
+	overrides := make([]*calendar.EventReminder, 0, len(filtered))
+	for _, r := range filtered {
+		method, minutes, err := parseReminder(r)
+		if err != nil {
+			return nil, err
+		}
+		overrides = append(overrides, &calendar.EventReminder{
+			Method:  method,
+			Minutes: minutes,
+		})
+	}
+
+	return &calendar.EventReminders{
+		UseDefault: false,
+		Overrides:  overrides,
+	}, nil
 }
