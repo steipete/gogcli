@@ -26,6 +26,7 @@ type GmailCmd struct {
 	URL         GmailURLCmd         `cmd:"" name:"url" help:"Print Gmail web URLs for threads"`
 	Labels      GmailLabelsCmd      `cmd:"" name:"labels" help:"Label operations"`
 	Send        GmailSendCmd        `cmd:"" name:"send" help:"Send an email"`
+	Track       GmailTrackCmd       `cmd:"" name:"track" help:"Email open tracking"`
 	Drafts      GmailDraftsCmd      `cmd:"" name:"drafts" help:"Draft operations"`
 	Watch       GmailWatchCmd       `cmd:"" name:"watch" help:"Manage Gmail watch"`
 	History     GmailHistoryCmd     `cmd:"" name:"history" help:"Gmail history"`
