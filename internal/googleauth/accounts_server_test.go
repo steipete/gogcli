@@ -471,14 +471,39 @@ func TestManageServer_HandleAuthStart_CredentialsError(t *testing.T) {
 func TestManageServer_HandleOAuthCallback_Success(t *testing.T) {
 	origRead := readClientCredentials
 	origEndpoint := oauthEndpoint
+	origFetchUserEmail := fetchUserEmailFn
 
 	t.Cleanup(func() {
 		readClientCredentials = origRead
 		oauthEndpoint = origEndpoint
+		fetchUserEmailFn = origFetchUserEmail
 	})
 
 	readClientCredentials = func() (config.ClientCredentials, error) {
 		return config.ClientCredentials{ClientID: "id", ClientSecret: "secret"}, nil
+	}
+
+	// Mock userinfo endpoint
+	userinfoSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/oauth2/v2/userinfo" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+
+			return
+		}
+
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer token" {
+			t.Fatalf("expected Bearer token, got %q", auth)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"email": "me@example.com"})
+	}))
+	defer userinfoSrv.Close()
+
+	// Override fetchUserEmail to use our mock server
+	fetchUserEmailFn = func(ctx context.Context, accessToken string) (string, error) {
+		return fetchUserEmailWithURL(ctx, accessToken, userinfoSrv.URL+"/oauth2/v2/userinfo")
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -522,15 +547,15 @@ func TestManageServer_HandleOAuthCallback_Success(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?state=state1&code=abc&email=me@example.com", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?state=state1&code=abc", nil)
 	ms.handleOAuthCallback(rr, req)
 
 	if rr.Code != http.StatusOK {
-		t.Fatalf("status: %d", rr.Code)
+		t.Fatalf("status: %d body: %s", rr.Code, rr.Body.String())
 	}
 
 	if store.setTokenEmail != "me@example.com" {
-		t.Fatalf("expected token stored for me@example.com")
+		t.Fatalf("expected token stored for me@example.com, got %q", store.setTokenEmail)
 	}
 
 	if store.setTokenValue.RefreshToken != "refresh" {
@@ -540,6 +565,67 @@ func TestManageServer_HandleOAuthCallback_Success(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), "me@example.com") {
 		t.Fatalf("expected body to include email")
 	}
+}
+
+func TestFetchUserEmail(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if auth := r.Header.Get("Authorization"); auth != "Bearer test-token" {
+				t.Fatalf("expected Bearer test-token, got %q", auth)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"email": "user@test.com"})
+		}))
+		defer srv.Close()
+
+		email, err := fetchUserEmailWithURL(context.Background(), "test-token", srv.URL)
+		if err != nil {
+			t.Fatalf("fetchUserEmail: %v", err)
+		}
+
+		if email != "user@test.com" {
+			t.Fatalf("expected user@test.com, got %q", email)
+		}
+	})
+
+	t.Run("empty email", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"email": ""})
+		}))
+		defer srv.Close()
+
+		_, err := fetchUserEmailWithURL(context.Background(), "test-token", srv.URL)
+		if err == nil {
+			t.Fatal("expected error for empty email")
+		}
+	})
+
+	t.Run("http error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+		defer srv.Close()
+
+		_, err := fetchUserEmailWithURL(context.Background(), "test-token", srv.URL)
+		if err == nil {
+			t.Fatal("expected error for 401")
+		}
+	})
+
+	t.Run("invalid json", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte("{invalid"))
+		}))
+		defer srv.Close()
+
+		_, err := fetchUserEmailWithURL(context.Background(), "test-token", srv.URL)
+		if err == nil {
+			t.Fatal("expected error for invalid json")
+		}
+	})
 }
 
 func TestStartManageServer_Timeout(t *testing.T) {
